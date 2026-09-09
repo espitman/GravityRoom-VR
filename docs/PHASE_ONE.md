@@ -68,3 +68,7 @@ The comprehensive Meta rig uses `ConformingToController` hand poses. The project
 - Follow-up build enables the missing hand-tracking manifest declarations, reduces overlapping room text and logs input transitions/OVR hand data. Installation succeeded. Subsequent on-device logs show both OVRHands tracked with valid, high-confidence data and trigger/grip transitions from both controllers. A live stereo capture confirms both translucent virtual hand meshes around controller models and legible room labels. Tracking/rendering resumed after removing and wearing the headset.
 - Follow-up APK SHA-256: `1dd4fbfb93b5875c20ddc54c9b0eae5c4161d2f7b015dc07c26994b2812a5e06`.
 - Performance and comfort qualification are deferred to phase 6; setting a 90 Hz target is not proof of sustained frame rate.
+
+## Hand appearance follow-up
+
+The phase-one translucent hands were replaced by a reference-inspired opaque glove prototype. The user then requested arms through the upper arm; that build is installed. See [HAND_VISUALS.md](HAND_VISUALS.md) for the approximate arm model, build evidence and outstanding visual acceptance. This follow-up does not imply that the final reference appearance is approved.

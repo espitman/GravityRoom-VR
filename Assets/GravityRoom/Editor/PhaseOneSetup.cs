@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using GravityRoom;
 using Meta.XR;
+using Oculus.Interaction;
 using Oculus.Interaction.OVR.Editor.QuickActions;
 using UnityEditor;
 using UnityEditor.Android;
@@ -31,6 +32,9 @@ namespace GravityRoom.Editor
         private const string ScenePath = "Assets/GravityRoom/Scenes/PhaseOne.unity";
         private const string MobilePipelinePath = "Assets/Settings/Mobile_RPAsset.asset";
         private const string MaterialFolder = "Assets/GravityRoom/Materials";
+        private const string GloveShaderName = "GravityRoom/OpaqueGloveLit";
+        private const string GloveBlackMaterialPath = MaterialFolder + "/GloveBlack.mat";
+        private const string GloveWhiteMaterialPath = MaterialFolder + "/GloveWhite.mat";
         private const string XrSettingsFolder = "Assets/XR";
         private const string XrSettingsPath = XrSettingsFolder + "/XRGeneralSettingsPerBuildTarget.asset";
         private const string ApkPath = "Builds/Android/GravityRoom-Phase1.apk";
@@ -64,9 +68,21 @@ namespace GravityRoom.Editor
                 Scene scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
                 DisableLocomotionObjects();
                 ConfigureDiagnosticLabels();
-                EditorSceneManager.MarkSceneDirty(scene);
-                EditorSceneManager.SaveScene(scene);
             }
+
+            ConfigureGloveVisuals();
+            Shader roomTextShader = Shader.Find("GravityRoom/DepthTestedText");
+            if (!roomTextShader) throw new BuildFailedException("Depth-tested room text shader is missing.");
+            foreach (var text in Object.FindObjectsByType<TextMesh>(FindObjectsSortMode.None))
+            {
+                var depthText = text.GetComponent<DepthTestedRoomText>();
+                if (!depthText) depthText = text.gameObject.AddComponent<DepthTestedRoomText>();
+                depthText.Configure(roomTextShader);
+                EditorUtility.SetDirty(depthText);
+            }
+            Scene configuredScene = SceneManager.GetActiveScene();
+            EditorSceneManager.MarkSceneDirty(configuredScene);
+            EditorSceneManager.SaveScene(configuredScene);
 
             EnsureSceneIsEnabled();
             AssetDatabase.SaveAssets();
@@ -296,6 +312,68 @@ namespace GravityRoom.Editor
             return material;
         }
 
+        private static Material GetOrCreateGloveMaterial(string path, string name, Color color,
+            float smoothness, float metallic)
+        {
+            EnsureAssetFolder(MaterialFolder);
+            Shader shader = Shader.Find(GloveShaderName);
+            if (!shader)
+                throw new BuildFailedException($"Opaque glove shader '{GloveShaderName}' was not found.");
+
+            Material material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (!material)
+            {
+                material = new Material(shader) { name = name };
+                AssetDatabase.CreateAsset(material, path);
+            }
+
+            material.shader = shader;
+            material.SetColor("_BaseColor", new Color(color.r, color.g, color.b, 1f));
+            material.SetFloat("_Smoothness", smoothness);
+            material.SetFloat("_Metallic", metallic);
+            material.renderQueue = (int)RenderQueue.Geometry;
+            EditorUtility.SetDirty(material);
+            return material;
+        }
+
+        private static void ConfigureGloveVisuals()
+        {
+            Material black = GetOrCreateGloveMaterial(GloveBlackMaterialPath, "GloveBlack",
+                new Color(0.012f, 0.016f, 0.022f, 1f), 0.34f, 0.06f);
+            Material white = GetOrCreateGloveMaterial(GloveWhiteMaterialPath, "GloveWhite",
+                new Color(0.82f, 0.86f, 0.90f, 1f), 0.46f, 0.08f);
+
+            GameObject[] roots = SceneManager.GetActiveScene().GetRootGameObjects();
+            HandVisual[] allHandVisuals = roots
+                .SelectMany(root => root.GetComponentsInChildren<HandVisual>(true)).ToArray();
+            HandVisual[] handVisuals = allHandVisuals
+                .Where(visual => visual.transform.parent != null &&
+                    visual.transform.parent.name == "OVRComprehensiveInteractionRig").ToArray();
+            foreach (var oldGlove in roots.SelectMany(root => root.GetComponentsInChildren<SciFiGloveVisual>(true)))
+                if (!handVisuals.Contains(oldGlove.GetComponent<HandVisual>()))
+                    Object.DestroyImmediate(oldGlove);
+            foreach (HandVisual handVisual in handVisuals)
+            {
+                SciFiGloveVisual glove = handVisual.GetComponent<SciFiGloveVisual>();
+                if (!glove)
+                    glove = handVisual.gameObject.AddComponent<SciFiGloveVisual>();
+                glove.Configure(handVisual, black, white);
+                EditorUtility.SetDirty(glove);
+            }
+
+            OVRCameraRig[] rigs = roots
+                .SelectMany(root => root.GetComponentsInChildren<OVRCameraRig>(true)).ToArray();
+            foreach (OVRCameraRig rig in rigs)
+            {
+                ControllerRendererSuppressor suppressor = rig.GetComponent<ControllerRendererSuppressor>();
+                if (!suppressor)
+                    suppressor = rig.gameObject.AddComponent<ControllerRendererSuppressor>();
+                suppressor.Configure();
+                suppressor.HideControllerRenderers();
+                EditorUtility.SetDirty(suppressor);
+            }
+        }
+
         private static void CreateBox(string name, Vector3 position, Vector3 scale, Material material)
         {
             GameObject box = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -470,6 +548,8 @@ namespace GravityRoom.Editor
                     failures.Add("PhaseOneDiagnostics does not have its status TextMesh assigned.");
             }
 
+            ValidateGloveVisuals(roots, failures);
+
             foreach (GameObject root in roots)
             foreach (Transform child in root.GetComponentsInChildren<Transform>(true))
             {
@@ -485,6 +565,62 @@ namespace GravityRoom.Editor
                         failures.Add($"Locomotion behaviour is enabled: '{GetHierarchyPath(child)}/{behaviour.GetType().Name}'.");
                 }
             }
+        }
+
+        private static void ValidateGloveVisuals(GameObject[] roots, ICollection<string> failures)
+        {
+            Shader shader = Shader.Find(GloveShaderName);
+            if (!shader)
+                failures.Add($"Opaque glove shader '{GloveShaderName}' is unavailable.");
+
+            Material black = AssetDatabase.LoadAssetAtPath<Material>(GloveBlackMaterialPath);
+            Material white = AssetDatabase.LoadAssetAtPath<Material>(GloveWhiteMaterialPath);
+            ValidateOpaqueGloveMaterial(black, GloveBlackMaterialPath, shader, failures);
+            ValidateOpaqueGloveMaterial(white, GloveWhiteMaterialPath, shader, failures);
+
+            HandVisual[] allHandVisuals = roots
+                .SelectMany(root => root.GetComponentsInChildren<HandVisual>(true)).ToArray();
+            HandVisual[] handVisuals = allHandVisuals
+                .Where(visual => visual.transform.parent != null &&
+                    visual.transform.parent.name == "OVRComprehensiveInteractionRig").ToArray();
+            if (handVisuals.Length != 2)
+                failures.Add($"Phase 1 contains {handVisuals.Length} HandVisual components; expected left and right hands.");
+            foreach (HandVisual handVisual in handVisuals)
+            {
+                SciFiGloveVisual glove = handVisual.GetComponent<SciFiGloveVisual>();
+                if (!glove)
+                {
+                    failures.Add($"Hand visual '{GetHierarchyPath(handVisual.transform)}' has no SciFiGloveVisual.");
+                    continue;
+                }
+                if (glove.HandVisual != handVisual || glove.BlackMaterial != black || glove.WhiteMaterial != white)
+                    failures.Add($"Sci-fi glove references are incomplete on '{GetHierarchyPath(handVisual.transform)}'.");
+            }
+            foreach (HandVisual auxiliary in allHandVisuals.Except(handVisuals))
+                if (auxiliary.GetComponent<SciFiGloveVisual>())
+                    failures.Add($"Auxiliary hand visual '{GetHierarchyPath(auxiliary.transform)}' must not render a glove.");
+
+            ControllerRendererSuppressor[] suppressors = roots
+                .SelectMany(root => root.GetComponentsInChildren<ControllerRendererSuppressor>(true)).ToArray();
+            if (suppressors.Length != 1)
+                failures.Add($"Phase 1 contains {suppressors.Length} controller renderer suppressors; expected exactly one.");
+        }
+
+        private static void ValidateOpaqueGloveMaterial(Material material, string path, Shader shader,
+            ICollection<string> failures)
+        {
+            if (!material)
+            {
+                failures.Add($"Glove material is missing at {path}.");
+                return;
+            }
+            if (shader && material.shader != shader)
+                failures.Add($"Glove material at {path} does not use {GloveShaderName}.");
+            if (material.renderQueue > (int)RenderQueue.GeometryLast ||
+                material.GetTag("RenderType", false) != "Opaque")
+                failures.Add($"Glove material at {path} is not configured as opaque geometry.");
+            if (material.HasProperty("_BaseColor") && material.GetColor("_BaseColor").a < 0.999f)
+                failures.Add($"Glove material at {path} has a non-opaque base color.");
         }
 
         private static bool IsLocomotionBehaviour(MonoBehaviour behaviour)

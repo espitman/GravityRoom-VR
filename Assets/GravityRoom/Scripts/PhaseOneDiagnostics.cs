@@ -42,6 +42,14 @@ namespace GravityRoom
                     Debug.Log($"[GravityRoom] Hand {hand.name}: tracked={hand.IsTracked}; " +
                         $"dataValid={hand.IsDataValid}; confidence={hand.HandConfidence}; " +
                         $"controllerPoses={OVRManager.instance?.controllerDrivenHandPosesType}");
+                foreach (var glove in FindObjectsByType<SciFiGloveVisual>(FindObjectsSortMode.None))
+                {
+                    int visibleParts = 0;
+                    foreach (var part in glove.GetComponentsInChildren<MeshRenderer>())
+                        if (part.enabled && part.gameObject.activeInHierarchy) visibleParts++;
+                    Debug.Log($"[GravityRoom] Glove {glove.name}: visibleParts={visibleParts}; " +
+                        $"shader={glove.BlackMaterial?.shader?.name}");
+                }
             }
         }
 

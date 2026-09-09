@@ -55,6 +55,61 @@
         "CLI reached its five-minute print timeout with the turn in progress and returned an empty response despite status SUCCESS. No diagnostic conclusion is attributed to this run.",
         "Root diagnosed and fixed manifest support, rebuilt and verified device hand data independently. Root token usage is unavailable."
       ]
+    },
+    {
+      "task": "Reference glove implementation attempt: resumed CLI was read-only",
+      "model": "gpt-5.6-sol",
+      "tool": "Codex CLI",
+      "source": "turn.completed usage in sol-gloves-resume-events.jsonl",
+      "usage": {
+        "input_tokens": 386497,
+        "cached_input_tokens": 371456,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 2575,
+        "reasoning_output_tokens": 1883,
+        "total_tokens": 389072
+      },
+      "notes": [
+        "No implementation files were changed in this attempt. Workspace write mode was explicitly restored for a subsequent run.",
+        "Initial preceding attempt was interrupted after waiting without producing code; task-specific usage was not emitted and is unknown.",
+        "Root orchestration token usage is unavailable."
+      ]
+    },
+    {
+      "task": "Reference-inspired opaque gloves, wrist sleeves, controller rendering suppression, editor configuration and validation",
+      "model": "gpt-5.6-sol",
+      "tool": "Codex CLI",
+      "source": "turn.completed usage in sol-gloves-write-events.jsonl",
+      "usage": {
+        "input_tokens": 4125324,
+        "cached_input_tokens": 4031488,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 23628,
+        "reasoning_output_tokens": 8453,
+        "total_tokens": 4148952
+      },
+      "notes": [
+        "Shared implementation run; count once across glove subtasks. Cached input and reasoning output are subsets.",
+        "Root fixes and visual QA token usage are unavailable."
+      ]
+    },
+    {
+      "task": "Extend reference-inspired gloves to articulated forearms and upper arms",
+      "model": "gpt-5.6-sol",
+      "tool": "Codex CLI",
+      "source": "turn.completed usage in sol-arms-events.jsonl",
+      "usage": {
+        "input_tokens": 1218213,
+        "cached_input_tokens": 1200896,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 9298,
+        "reasoning_output_tokens": 4965,
+        "total_tokens": 1227511
+      },
+      "notes": [
+        "Shoulders and elbows are estimated from headset and tracked wrists; not body tracking.",
+        "Cached input and reasoning output are subsets. Root review/build/device testing usage is unavailable."
+      ]
     }
   ]
 }

@@ -164,6 +164,23 @@
         "Shared run across Phase 2 implementation tasks; count once. Cached input and reasoning output are subsets.",
         "Root fixes, Unity verification and documentation token usage unavailable."
       ]
+    },
+    {
+      "task": "Phase 2 non-development Release APK build entry point",
+      "model": "gpt-5.6-sol",
+      "tool": "Codex CLI",
+      "source": "turn.completed in gravity-release-sol.jsonl",
+      "usage": {
+        "input_tokens": 82744,
+        "cached_input_tokens": 71936,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1345,
+        "reasoning_output_tokens": 43,
+        "total_tokens": 84089
+      },
+      "notes": [
+        "Build entry point and shell action only. Root Unity build, artifact verification and delivery token usage unavailable."
+      ]
     }
   ]
 }

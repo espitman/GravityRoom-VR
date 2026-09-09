@@ -23,7 +23,9 @@ namespace GravityRoom.Editor
         private const string ScenePath = "Assets/GravityRoom/Scenes/PhaseTwo.unity";
         private const string MaterialFolder = "Assets/GravityRoom/Materials";
         private const string ApkPath = "Builds/Android/GravityRoom-Phase2.apk";
+        private const string ReleaseApkPath = "Builds/Android/GravityRoom-Phase2-Release.apk";
         private const string BuildLogPath = "Logs/GravityRoom-Phase2-build.txt";
+        private const string ReleaseBuildLogPath = "Logs/GravityRoom-Phase2-release-build.txt";
         private const float BallRadius = 0.1f;
         private static readonly Vector2 ApertureHalfSize = new(0.5f, 0.6f);
 
@@ -64,22 +66,35 @@ namespace GravityRoom.Editor
 
         public static void BuildAndroid()
         {
+            BuildAndroid(false);
+        }
+
+        public static void BuildReleaseAndroid()
+        {
+            BuildAndroid(true);
+        }
+
+        private static void BuildAndroid(bool release)
+        {
             PhaseOneSetup.ConfigureBundledAndroidTools();
             Validate();
             PlayerSettings.Android.useCustomKeystore = false;
-            Directory.CreateDirectory(Path.GetDirectoryName(ApkPath) ?? "Builds/Android");
-            Directory.CreateDirectory(Path.GetDirectoryName(BuildLogPath) ?? "Logs");
+            string apkPath = release ? ReleaseApkPath : ApkPath;
+            string buildLogPath = release ? ReleaseBuildLogPath : BuildLogPath;
+            string buildType = release ? "Release" : "Development";
+            Directory.CreateDirectory(Path.GetDirectoryName(apkPath) ?? "Builds/Android");
+            Directory.CreateDirectory(Path.GetDirectoryName(buildLogPath) ?? "Logs");
 
             BuildReport report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
             {
                 scenes = new[] { ScenePath },
-                locationPathName = ApkPath,
+                locationPathName = apkPath,
                 target = BuildTarget.Android,
                 targetGroup = BuildTargetGroup.Android,
-                options = BuildOptions.Development
+                options = release ? BuildOptions.None : BuildOptions.Development
             });
             BuildSummary summary = report.summary;
-            string text = $"GravityRoom Phase 2 Android build{Environment.NewLine}" +
+            string text = $"GravityRoom Phase 2 Android {buildType} build{Environment.NewLine}" +
                           $"Result: {summary.result}{Environment.NewLine}" +
                           $"Output: {summary.outputPath}{Environment.NewLine}" +
                           $"Started: {summary.buildStartedAt:O}{Environment.NewLine}" +
@@ -88,12 +103,12 @@ namespace GravityRoom.Editor
                           $"Size: {summary.totalSize} bytes{Environment.NewLine}" +
                           $"Warnings: {summary.totalWarnings}{Environment.NewLine}" +
                           $"Errors: {summary.totalErrors}{Environment.NewLine}";
-            File.WriteAllText(BuildLogPath, text);
+            File.WriteAllText(buildLogPath, text);
             AssetDatabase.Refresh();
             if (summary.result != BuildResult.Succeeded || summary.totalErrors > 0)
-                throw new BuildFailedException($"Android build {summary.result} with {summary.totalErrors} error(s). " +
-                                               $"See {BuildLogPath}.");
-            Debug.Log($"[GravityRoom] Development APK built at {ApkPath}. Summary: {BuildLogPath}");
+                throw new BuildFailedException($"Android {buildType} build {summary.result} with " +
+                                               $"{summary.totalErrors} error(s). See {buildLogPath}.");
+            Debug.Log($"[GravityRoom] {buildType} APK built at {apkPath}. Summary: {buildLogPath}");
         }
 
         private static void RemovePhaseOneOnlyObjects(Scene scene)

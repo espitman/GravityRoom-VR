@@ -51,3 +51,15 @@ Sol (`gpt-5.6-sol`, Codex CLI) implemented the scene generator and runtime: 1,46
 - `git diff --check`, shell syntax and accounting JSON parsing passed. Unity upgraded the serialized physics settings to its current schema while retaining FixedUpdate simulation and existing gravity.
 - The physics test harness initially failed because scene creation and simulation mode needed editor-specific handling; both were corrected before the successful build.
 - **Not yet verified:** installation/launch of PhaseTwo on Quest, natural-hand/controller throws, inter-hand transfers and reset races on hardware, reachability/throw tuning, performance and visual acceptance.
+
+## Release build for sideload testing
+
+```bash
+./scripts/unity.sh release2
+```
+
+This builds `Builds/Android/GravityRoom-Phase2-Release.apk` with `BuildOptions.None` (non-development player). It uses the same local debug signing certificate as earlier sideload builds for update compatibility; store signing is not configured. The existing `build2` command still produces the development APK.
+
+Release build tooling: Sol (`gpt-5.6-sol`, Codex CLI), 82,744 input + 1,345 output = 84,089 tokens. Root build/verification/delivery usage is unavailable.
+
+Verified 2026-09-10: Release build succeeded (0 errors, 8 warnings); APK 69,871,186 bytes, SHA-256 `f1cc09fe78aebef02232f5c1eaebbfdd60a5562ad4ea10a1affb3394abdb157d`. `apksigner verify` passed and the certificate matches the prior development APK. The manifest has no `android:debuggable` attribute (Android defaults it to false). An identical copy was delivered to the desktop as `GravityRoom-Phase2-Release.apk`. Device installation/testing remains with the user.

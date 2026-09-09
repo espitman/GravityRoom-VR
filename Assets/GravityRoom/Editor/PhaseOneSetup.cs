@@ -188,7 +188,7 @@ namespace GravityRoom.Editor
             serializedSettings.ApplyModifiedPropertiesWithoutUndo();
         }
 
-        private static void ConfigureBundledAndroidTools()
+        internal static void ConfigureBundledAndroidTools()
         {
             string root = Path.Combine(EditorApplication.applicationContentsPath, "PlaybackEngines/AndroidPlayer");
             AndroidExternalToolsSettings.jdkRootPath = ResolveTool("UNITY_JDK_ROOT", AndroidExternalToolsSettings.jdkRootPath, Path.Combine(root, "OpenJDK"));

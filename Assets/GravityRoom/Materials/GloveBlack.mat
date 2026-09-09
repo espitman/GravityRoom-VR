@@ -27,7 +27,9 @@ Material:
     m_Floats:
     - _Metallic: 0.06
     - _Smoothness: 0.34
+    - _UseVertexPanels: 0
     m_Colors:
     - _BaseColor: {r: 0.012, g: 0.016, b: 0.022, a: 1}
+    - _PanelColor: {r: 0.82, g: 0.86, b: 0.9, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

@@ -15,7 +15,10 @@ case "$ACTION" in
   setup) METHOD=GravityRoom.Editor.PhaseOneSetup.Configure ;;
   validate) METHOD=GravityRoom.Editor.PhaseOneSetup.Validate ;;
   build) METHOD=GravityRoom.Editor.PhaseOneSetup.BuildAndroid ;;
-  *) echo "Usage: $0 {setup|validate|build}" >&2; exit 2 ;;
+  setup2) METHOD=GravityRoom.Editor.PhaseTwoSetup.Configure ;;
+  validate2) METHOD=GravityRoom.Editor.PhaseTwoSetup.Validate ;;
+  build2) METHOD=GravityRoom.Editor.PhaseTwoSetup.BuildAndroid ;;
+  *) echo "Usage: $0 {setup|validate|build|setup2|validate2|build2}" >&2; exit 2 ;;
 esac
 mkdir -p "$PROJECT_ROOT/Logs"
 exec "$UNITY_EDITOR" -batchmode -nographics -quit -projectPath "$PROJECT_ROOT" \

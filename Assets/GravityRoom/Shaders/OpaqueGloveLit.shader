@@ -3,6 +3,8 @@ Shader "GravityRoom/OpaqueGloveLit"
     Properties
     {
         [MainColor] _BaseColor("Base Color", Color) = (1, 1, 1, 1)
+        _PanelColor("Finger Panel Color", Color) = (0.82, 0.86, 0.90, 1)
+        _UseVertexPanels("Use Finger Vertex Mask", Float) = 0
         _Smoothness("Smoothness", Range(0, 1)) = 0.42
         _Metallic("Metallic", Range(0, 1)) = 0.05
     }
@@ -41,6 +43,7 @@ Shader "GravityRoom/OpaqueGloveLit"
             {
                 float4 positionOS : POSITION;
                 float3 normalOS : NORMAL;
+                half4 color : COLOR;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
@@ -50,12 +53,15 @@ Shader "GravityRoom/OpaqueGloveLit"
                 half3 normalWS : TEXCOORD0;
                 float3 positionWS : TEXCOORD1;
                 half3 vertexSH : TEXCOORD2;
+                half panelMask : TEXCOORD3;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
                 UNITY_VERTEX_OUTPUT_STEREO
             };
 
             CBUFFER_START(UnityPerMaterial)
                 half4 _BaseColor;
+                half4 _PanelColor;
+                half _UseVertexPanels;
                 half _Smoothness;
                 half _Metallic;
             CBUFFER_END
@@ -73,6 +79,7 @@ Shader "GravityRoom/OpaqueGloveLit"
                 output.positionWS = positionInputs.positionWS;
                 output.normalWS = normalInputs.normalWS;
                 output.vertexSH = SampleSHVertex(output.normalWS);
+                output.panelMask = input.color.r * _UseVertexPanels;
                 return output;
             }
 
@@ -93,7 +100,7 @@ Shader "GravityRoom/OpaqueGloveLit"
                 inputData.shadowMask = half4(1, 1, 1, 1);
 
                 SurfaceData surface = (SurfaceData)0;
-                surface.albedo = _BaseColor.rgb;
+                surface.albedo = lerp(_BaseColor.rgb, _PanelColor.rgb, saturate(input.panelMask));
                 surface.alpha = 1.0h;
                 surface.metallic = _Metallic;
                 surface.specular = half3(0, 0, 0);

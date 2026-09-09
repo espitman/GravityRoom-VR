@@ -26,9 +26,9 @@ namespace GravityRoom
         private Transform cuff;
         private Transform forearmSleeve;
         private Transform elbowJoint;
-        private Transform upperArmSleeve;
-        private Transform[] knucklePlates;
         private bool initialized;
+        private readonly HashSet<SkinnedMeshRenderer> coloredHands = new();
+        private Material fingerSurfaceMaterial;
         private readonly List<Mesh> ownedMeshes = new();
         private Transform head;
         private Vector3 bodyForward = Vector3.forward;
@@ -41,6 +41,7 @@ namespace GravityRoom
 
         private void OnDestroy()
         {
+            if (fingerSurfaceMaterial != null) Destroy(fingerSurfaceMaterial);
             foreach (Mesh mesh in ownedMeshes)
                 if (mesh != null) Destroy(mesh);
         }
@@ -142,12 +143,6 @@ namespace GravityRoom
             cuff = CreatePart("Black Wrist Cuff", cuffMesh, blackMaterial);
             forearmSleeve = CreatePart("White Forearm Sleeve", sleeveMesh, whiteMaterial);
             elbowJoint = CreatePart("Black Elbow Joint", cuffMesh, blackMaterial);
-            upperArmSleeve = CreatePart("White Upper Arm Sleeve", sleeveMesh, whiteMaterial);
-
-            knucklePlates = new Transform[4];
-            string[] names = { "Index", "Middle", "Ring", "Pinky" };
-            for (int i = 0; i < knucklePlates.Length; i++)
-                knucklePlates[i] = CreatePart($"White {names[i]} Knuckle Plate", plateMesh, whiteMaterial);
 
             OVRCameraRig cameraRig = GetComponentInParent<OVRCameraRig>();
             head = cameraRig != null && cameraRig.centerEyeAnchor != null
@@ -217,22 +212,7 @@ namespace GravityRoom
                 handRotation,
                 new Vector3(handWidth, 0.0065f, handLength * 0.72f));
 
-            for (int i = 0; i < knucklePlates.Length; i++)
-            {
-                if (!TryGetPose(hand, FingerStarts[i], out Pose start) || !TryGetPose(hand, FingerEnds[i], out Pose end))
-                {
-                    knucklePlates[i].gameObject.SetActive(false);
-                    continue;
-                }
-
-                knucklePlates[i].gameObject.SetActive(true);
-                Vector3 direction = SafeDirection(end.position - start.position, forward);
-                float length = Mathf.Clamp(Vector3.Distance(start.position, end.position) * 0.68f, 0.015f, 0.030f);
-                SetPart(knucklePlates[i],
-                    Vector3.Lerp(start.position, end.position, 0.34f) + dorsal * (PlateLift * 0.8f),
-                    Quaternion.LookRotation(direction, dorsal),
-                    new Vector3(FingerWidths[i] * hand.Scale, 0.0045f * hand.Scale, length));
-            }
+            ApplyFingerSurfaceColors(hand, forward, dorsal);
 
             float scale = Mathf.Clamp(hand.Scale, 0.75f, 1.35f);
             Vector3 fallbackForearmDirection = -forward;
@@ -241,6 +221,77 @@ namespace GravityRoom
                 new Vector3(0.043f * scale, 0.036f * scale, 0.038f * scale));
 
             UpdateArm(hand, wrist.position, dorsal, scale);
+        }
+
+        private void ApplyFingerSurfaceColors(IHand hand, Vector3 palmForward, Vector3 palmDorsal)
+        {
+            // Bake only once per active hand mesh to locate its dorsal finger surfaces.
+            // Colors are stored on the original skinned vertices, so they deform with
+            // the skin instead of intersecting it like separate rigid finger plates.
+            foreach (var renderer in handRenderers)
+            {
+                if (renderer == null || !renderer.enabled || !renderer.gameObject.activeInHierarchy ||
+                    coloredHands.Contains(renderer) || renderer.sharedMesh == null)
+                    continue;
+                var starts = new Vector3[4];
+                var directions = new Vector3[4];
+                var dorsals = new Vector3[4];
+                var lengths = new float[4];
+                bool posesValid = true;
+                for (int finger = 0; finger < 4; finger++)
+                {
+                    if (!TryGetPose(hand, FingerStarts[finger], out Pose start) ||
+                        !TryGetPose(hand, FingerEnds[finger], out Pose end))
+                    { posesValid = false; break; }
+                    starts[finger] = start.position;
+                    Vector3 delta = end.position - start.position;
+                    lengths[finger] = delta.magnitude;
+                    if (lengths[finger] < 0.001f) { posesValid = false; break; }
+                    directions[finger] = delta / lengths[finger];
+                    dorsals[finger] = Quaternion.FromToRotation(palmForward, directions[finger]) * palmDorsal;
+                }
+                if (!posesValid) continue;
+                var baked = new Mesh();
+                renderer.BakeMesh(baked);
+                var vertices = baked.vertices;
+                var normals = baked.normals;
+                var colors = new Color[vertices.Length];
+                int whiteVertices = 0;
+                for (int vertex = 0; vertex < vertices.Length; vertex++)
+                {
+                    Vector3 world = renderer.transform.TransformPoint(vertices[vertex]);
+                    Vector3 normal = renderer.transform.TransformDirection(normals[vertex]).normalized;
+                    float mask = 0f;
+                    for (int finger = 0; finger < 4; finger++)
+                    {
+                        Vector3 offset = world - starts[finger];
+                        float along = Vector3.Dot(offset, directions[finger]);
+                        float t = along / lengths[finger];
+                        float radius = (offset - directions[finger] * along).magnitude;
+                        if (t > 0.08f && t < 0.9f &&
+                            radius < FingerWidths[finger] * hand.Scale * 0.9f &&
+                            Vector3.Dot(normal, dorsals[finger]) > 0.2f)
+                            mask = 1f;
+                    }
+                    colors[vertex] = new Color(mask, mask, mask, 1f);
+                    if (mask > 0f) whiteVertices++;
+                }
+                Destroy(baked);
+                var coloredMesh = Instantiate(renderer.sharedMesh);
+                coloredMesh.name = "GravityRoom Skinned Glove Surface";
+                coloredMesh.colors = colors;
+                ownedMeshes.Add(coloredMesh);
+                if (fingerSurfaceMaterial == null)
+                {
+                    fingerSurfaceMaterial = new Material(blackMaterial);
+                    fingerSurfaceMaterial.SetFloat("_UseVertexPanels", 1f);
+                    fingerSurfaceMaterial.SetColor("_PanelColor", whiteMaterial.GetColor("_BaseColor"));
+                }
+                renderer.sharedMesh = coloredMesh;
+                renderer.sharedMaterial = fingerSurfaceMaterial;
+                coloredHands.Add(renderer);
+                Debug.Log($"[GravityRoom] Finger surface {name}: whiteVertices={whiteVertices}/{vertices.Length}");
+            }
         }
 
         private void UpdateArm(IHand hand, Vector3 wrist, Vector3 handDorsal, float scale)
@@ -337,14 +388,12 @@ namespace GravityRoom
 
             SetArmActive(true);
             Vector3 forearmUp = StableSegmentUp(wrist - elbow, handDorsal, bodyForward);
-            Vector3 upperUp = StableSegmentUp(shoulder - elbow, bodyForward, handDorsal);
 
             // The shared tapered mesh is narrow at its first endpoint and wider at
-            // its second: wrist -> elbow and elbow -> shoulder match arm anatomy.
+            // its second: wrist -> elbow follows the visible forearm.
+            // The upper arm is used only by the elbow estimate, never rendered.
             SetSegment(forearmSleeve, wrist, elbow, forearmUp,
                 0.043f * scale, 0.038f * scale);
-            SetSegment(upperArmSleeve, elbow, shoulder, upperUp,
-                0.052f * scale, 0.046f * scale);
 
             Vector3 upperDirection = (elbow - shoulder).normalized;
             Vector3 lowerDirection = (wrist - elbow).normalized;
@@ -387,7 +436,6 @@ namespace GravityRoom
         {
             if (forearmSleeve != null) forearmSleeve.gameObject.SetActive(active);
             if (elbowJoint != null) elbowJoint.gameObject.SetActive(active);
-            if (upperArmSleeve != null) upperArmSleeve.gameObject.SetActive(active);
         }
 
         private void SetGeneratedRenderers(bool visible)

@@ -28,3 +28,11 @@ The extended arm implementation uses a smoothed HMD-yaw shoulder estimate and an
 2026-09-10 (Asia/Tehran): the extended-arm build and depth-tested room text compiled successfully with zero errors and eight warnings, then installed and launched on Quest 3. APK SHA-256: `17999e18481352818ac8c1e79b42f5790fccccaa2227deb2a1bf0c0d796a5686`. The final arm appearance, text occlusion and controller-button acceptance remain pending the headset check.
 
 Device runtime follow-up: both hands produced valid, high-confidence data and nine visible generated parts. Some poses triggered the right-arm reach guard (six remaining glove parts), so arm fit still needs user review. The headset then paused before a usable final stereo capture was obtained. No managed exception or assertion appeared in the inspected Unity log.
+
+## User-requested forearm revision
+
+The user preferred only the portion below the elbow and explicitly asked to keep the attractive white finger accents. Upper-arm geometry is now removed; the shoulder is retained only as an input to elbow estimation. Separate rigid finger plates were replaced with white vertex-color patches on a runtime clone of the SDK skinned hand mesh. The white accents now deform on the same surface as the black glove, eliminating interpenetrating finger geometry. No vendor mesh data is committed.
+
+This revision built with zero errors and eight warnings and was installed on Quest. APK SHA-256: `c3e86dfe46e574dfe87b37e61184045b7dcea1cfac4d7b7031ccb6013933eed8`. Visual acceptance remains pending. Root model identity beyond GPT-6 and task token usage are unavailable; no additional Sol run was used for this revision.
+
+Acceptance: the user confirmed the forearm-only revision and retained white finger accents with “خوب شد الان” (looks good now). Runtime logged white surface vertices on both hand meshes (right 74/1360, left 75/1360) with no managed exception or assertion in the inspected Unity log. This accepted prototype is the current visual baseline; it is not a claim of pixel-exact reference reproduction.

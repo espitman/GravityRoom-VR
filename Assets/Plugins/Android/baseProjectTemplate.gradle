@@ -1,0 +1,11 @@
+// Unity 6000.0.61+ officially pairs Gradle 8.13 with Android Gradle Plugin 8.10.0.
+// Pin this instead of inheriting a modified machine-wide Gradle template.
+plugins {
+    id 'com.android.application' version '8.10.0' apply false
+    id 'com.android.library' version '8.10.0' apply false
+    **BUILD_SCRIPT_DEPS**
+}
+
+tasks.register('clean', Delete) {
+    delete rootProject.layout.buildDirectory
+}

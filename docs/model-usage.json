@@ -1,0 +1,60 @@
+{
+  "runs": [
+    {
+      "task": "Phase 1 build/deployment script review and fixes",
+      "model": "gemini-3.8-flash-medium",
+      "tool": "agy CLI",
+      "source": "agy --output-format json usage object",
+      "duration_seconds": 228.165509,
+      "usage": {
+        "input_tokens": 230404,
+        "output_tokens": 28421,
+        "thinking_tokens": 19222,
+        "cache_read_tokens": 1424087,
+        "total_tokens": 258825
+      },
+      "notes": [
+        "Counts copied from CLI usage metadata, not estimated.",
+        "Reported total_tokens equals input_tokens + output_tokens. Cache and thinking fields are preserved separately without adding them again.",
+        "Parent orchestration token usage is unavailable."
+      ]
+    },
+    {
+      "task": "PhaseOneSetup editor configuration, scene generator, validation and Android builder implementation",
+      "model": "gpt-5.6-sol",
+      "tool": "Codex CLI",
+      "source": "codex exec --json turn.completed usage",
+      "usage": {
+        "input_tokens": 3311117,
+        "cached_input_tokens": 3193728,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 21860,
+        "reasoning_output_tokens": 6309,
+        "total_tokens": 3332977
+      },
+      "notes": [
+        "Cached input is a subset of input_tokens; reasoning output is a subset of output_tokens. Do not add either twice.",
+        "This run contributed to multiple Phase 1 items. Its total is recorded once under the editor tooling subtask, without allocating invented per-item counts.",
+        "Parent orchestration and subsequent fixes are not included; their token counts are unavailable."
+      ]
+    },
+    {
+      "task": "Phase 1 invisible-hands read-only diagnosis attempt",
+      "model": "gemini-3.8-flash-medium",
+      "tool": "agy CLI",
+      "source": "agy --output-format json usage object",
+      "duration_seconds": 298.570623,
+      "usage": {
+        "input_tokens": 382042,
+        "output_tokens": 15107,
+        "thinking_tokens": 8447,
+        "cache_read_tokens": 4059723,
+        "total_tokens": 397149
+      },
+      "notes": [
+        "CLI reached its five-minute print timeout with the turn in progress and returned an empty response despite status SUCCESS. No diagnostic conclusion is attributed to this run.",
+        "Root diagnosed and fixed manifest support, rebuilt and verified device hand data independently. Root token usage is unavailable."
+      ]
+    }
+  ]
+}

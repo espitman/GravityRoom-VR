@@ -10,8 +10,11 @@
 [Rr]ecordings/
 .vs/
 .idea/
+.vscode/
+.utmp/
 *.csproj
 *.sln
+*.slnx
 *.suo
 *.user
 *.pidb
@@ -31,3 +34,10 @@ sysinfo.txt
 *.apk
 *.aab
 tmp/
+
+# SDK-generated machine-local settings and test reports
+/Assets/Resources/DevAgentSettings.asset*
+/Assets/Resources/PerformanceTestRunInfo.json*
+/Assets/Resources/PerformanceTestRunSettings.json*
+*.dmp
+*.crash

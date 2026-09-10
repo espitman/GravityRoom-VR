@@ -15,6 +15,7 @@ namespace GravityRoom
         [SerializeField] private float ballRadius = 0.1f;
         [SerializeField] private Vector2 apertureHalfSize = new(0.5f, 0.6f);
         [SerializeField] private float resetDelay = 0.9f;
+        [SerializeField] private float floorResetDelay = 2f;
         [SerializeField] private float unheldTimeout = 12f;
 
         private Vector3 spawnPosition;
@@ -139,6 +140,12 @@ namespace GravityRoom
                 }
             }
 
+            if (!successPending && PhaseTwoPassLogic.HasReachedFloor(currentPosition, ballRadius))
+            {
+                RequestReset(floorResetDelay, false);
+                SetStatus("ORB DOWN — RESETTING...", Color.black);
+            }
+
             if (!successPending && passArmed && PhaseTwoPassLogic.CrossedFrontToBack(
                     previousPosition, currentPosition, gateCenter.position, gateCenter.rotation,
                     apertureHalfSize, ballRadius))
@@ -200,6 +207,15 @@ namespace GravityRoom
             SetStatus("READY — GRAB AND THROW THROUGH THE GATE\nB / Y: reset", Color.black);
         }
 
+        public void ResetAfterFloorContact()
+        {
+            if (grabbable != null && grabbable.SelectingPointsCount == 0)
+            {
+                RequestReset(floorResetDelay, false);
+                SetStatus("ORB DOWN — RESETTING...", Color.black);
+            }
+        }
+
         private void SetBallMaterial(Material material)
         {
             if (material != null && ball.TryGetComponent(out MeshRenderer renderer))
@@ -214,9 +230,31 @@ namespace GravityRoom
         }
     }
 
+    /// <summary>Reports a real floor collision to the practice lifecycle in the same physics step.</summary>
+    public sealed class PhaseTwoFloorReset : MonoBehaviour
+    {
+        [SerializeField] private PhaseTwoPracticeController controller;
+
+        public PhaseTwoPracticeController Controller => controller;
+
+        public void Configure(PhaseTwoPracticeController practiceController)
+        {
+            controller = practiceController;
+        }
+
+        private void OnCollisionEnter(Collision collision)
+        {
+            if (controller != null && collision.collider.name == "Floor")
+                controller.ResetAfterFloorContact();
+        }
+    }
+
     /// <summary>Geometry-only gate rule, kept independent of frame rate and physics callbacks.</summary>
     public static class PhaseTwoPassLogic
     {
+        public static bool HasReachedFloor(Vector3 sphereCenter, float sphereRadius) =>
+            sphereCenter.y <= sphereRadius + 0.015f;
+
         public static bool CrossedFrontToBack(Vector3 previous, Vector3 current, Vector3 gatePosition,
             Quaternion gateRotation, Vector2 apertureHalfSize, float sphereRadius)
         {

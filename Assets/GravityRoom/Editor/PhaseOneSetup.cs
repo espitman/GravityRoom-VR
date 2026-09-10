@@ -5,6 +5,7 @@ using System.Linq;
 using GravityRoom;
 using Meta.XR;
 using Oculus.Interaction;
+using Oculus.Interaction.Input;
 using Oculus.Interaction.OVR.Editor.QuickActions;
 using UnityEditor;
 using UnityEditor.Android;
@@ -71,7 +72,10 @@ namespace GravityRoom.Editor
             }
 
             ConfigureOvrManager();
+            ConfigurePlayerStartAlignment();
             ConfigureGloveVisuals();
+            ConfigureHandPhysics();
+            ConfigurePokeLimiters();
             Shader roomTextShader = Shader.Find("GravityRoom/DepthTestedText");
             if (!roomTextShader) throw new BuildFailedException("Depth-tested room text shader is missing.");
             foreach (var text in Object.FindObjectsByType<TextMesh>(FindObjectsSortMode.None))
@@ -375,6 +379,69 @@ namespace GravityRoom.Editor
             }
         }
 
+        private static void ConfigureHandPhysics()
+        {
+            GameObject[] roots = SceneManager.GetActiveScene().GetRootGameObjects();
+            HandVisual[] primaryVisuals = roots
+                .SelectMany(root => root.GetComponentsInChildren<HandVisual>(true))
+                .Where(visual => visual.transform.parent != null &&
+                    visual.transform.parent.name == "OVRComprehensiveInteractionRig")
+                .ToArray();
+            JointsRadiusFeature[] radiusFeatures = roots
+                .SelectMany(root => root.GetComponentsInChildren<JointsRadiusFeature>(true)).ToArray();
+
+            foreach (HandVisual visual in primaryVisuals)
+            {
+                var serializedVisual = new SerializedObject(visual);
+                SyntheticHand syntheticHand = serializedVisual.FindProperty("_hand")?.objectReferenceValue as SyntheticHand;
+                if (!syntheticHand)
+                    throw new BuildFailedException($"Primary hand visual '{GetHierarchyPath(visual.transform)}' is not driven by a SyntheticHand.");
+
+                JointsRadiusFeature radiusFeature = radiusFeatures.FirstOrDefault(feature =>
+                {
+                    var serializedFeature = new SerializedObject(feature);
+                    Hand source = serializedFeature.FindProperty("_hand")?.objectReferenceValue as Hand;
+                    return source != null && source.Handedness == syntheticHand.Handedness;
+                });
+                if (!radiusFeature)
+                    throw new BuildFailedException($"No joint-radius source was found for the {syntheticHand.Handedness} hand.");
+
+                HandPhysicsCapsules capsules = visual.GetComponent<HandPhysicsCapsules>();
+                if (!capsules) capsules = visual.gameObject.AddComponent<HandPhysicsCapsules>();
+                capsules.InjectAllOVRHandPhysicsCapsules(syntheticHand, false, 0);
+                capsules.InjectMask(HandFingerJointFlags.All);
+                capsules.InjectJointsRadiusFeature(radiusFeature);
+                EditorUtility.SetDirty(capsules);
+            }
+        }
+
+        private static void ConfigurePokeLimiters()
+        {
+            GameObject[] roots = SceneManager.GetActiveScene().GetRootGameObjects();
+            SyntheticHand[] syntheticHands = roots
+                .SelectMany(root => root.GetComponentsInChildren<SyntheticHand>(true)).ToArray();
+            HandPokeLimiterVisual[] limiters = roots
+                .SelectMany(root => root.GetComponentsInChildren<HandPokeLimiterVisual>(true)).ToArray();
+
+            foreach (HandPokeLimiterVisual limiter in limiters)
+            {
+                PokeInteractor pokeInteractor = limiter.GetComponentInParent<PokeInteractor>();
+                HandRef handRef = pokeInteractor ? pokeInteractor.GetComponent<HandRef>() : null;
+                Hand sourceHand = null;
+                if (handRef)
+                    sourceHand = new SerializedObject(handRef).FindProperty("_hand")?.objectReferenceValue as Hand;
+                if (!pokeInteractor || !sourceHand) continue;
+
+                SyntheticHand syntheticHand = syntheticHands.FirstOrDefault(candidate =>
+                    candidate.Handedness == sourceHand.Handedness);
+                if (!syntheticHand) continue;
+
+                limiter.InjectAllHandPokeLimiterVisual(sourceHand, pokeInteractor, syntheticHand);
+                limiter.gameObject.SetActive(true);
+                EditorUtility.SetDirty(limiter);
+            }
+        }
+
         private static void CreateBox(string name, Vector3 position, Vector3 scale, Material material)
         {
             GameObject box = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -440,6 +507,18 @@ namespace GravityRoom.Editor
             managers[0].SimultaneousHandsAndControllersEnabled = true;
             managers[0].launchSimultaneousHandsControllersOnStartup = true;
             EditorUtility.SetDirty(managers[0]);
+        }
+
+        private static void ConfigurePlayerStartAlignment()
+        {
+            OVRCameraRig[] rigs = SceneManager.GetActiveScene().GetRootGameObjects()
+                .SelectMany(root => root.GetComponentsInChildren<OVRCameraRig>(true)).ToArray();
+            if (rigs.Length != 1)
+                throw new BuildFailedException($"Phase 1 scene contains {rigs.Length} OVRCameraRig components; expected exactly one.");
+            PlayerStartAlignment alignment = rigs[0].GetComponent<PlayerStartAlignment>();
+            if (!alignment) alignment = rigs[0].gameObject.AddComponent<PlayerStartAlignment>();
+            alignment.Configure(rigs[0]);
+            EditorUtility.SetDirty(alignment);
         }
 
         private static void EnsureSceneIsEnabled()
@@ -547,6 +626,10 @@ namespace GravityRoom.Editor
             int cameraRigs = roots.Sum(root => root.GetComponentsInChildren<OVRCameraRig>(true).Length);
             if (cameraRigs != 1)
                 failures.Add($"Phase 1 scene contains {cameraRigs} OVRCameraRig components; expected exactly one.");
+            PlayerStartAlignment[] alignments = roots
+                .SelectMany(root => root.GetComponentsInChildren<PlayerStartAlignment>(true)).ToArray();
+            if (alignments.Length != 1 || cameraRigs == 1 && alignments[0].CameraRig == null)
+                failures.Add("Player start alignment is missing or not wired to the camera rig.");
 
             OVRManager[] managers = roots
                 .SelectMany(root => root.GetComponentsInChildren<OVRManager>(true)).ToArray();
@@ -574,6 +657,12 @@ namespace GravityRoom.Editor
             }
 
             ValidateGloveVisuals(roots, failures);
+            ValidateHandPhysics(roots, failures);
+            int activePokeLimiters = roots
+                .SelectMany(root => root.GetComponentsInChildren<HandPokeLimiterVisual>(true))
+                .Count(limiter => limiter.gameObject.activeSelf);
+            if (activePokeLimiters != 2)
+                failures.Add($"Phase 1 contains {activePokeLimiters} active hand surface limiters; expected two.");
 
             foreach (GameObject root in roots)
             foreach (Transform child in root.GetComponentsInChildren<Transform>(true))
@@ -629,6 +718,17 @@ namespace GravityRoom.Editor
                 .SelectMany(root => root.GetComponentsInChildren<ControllerRendererSuppressor>(true)).ToArray();
             if (suppressors.Length != 1)
                 failures.Add($"Phase 1 contains {suppressors.Length} controller renderer suppressors; expected exactly one.");
+        }
+
+        private static void ValidateHandPhysics(GameObject[] roots, ICollection<string> failures)
+        {
+            HandVisual[] primaryVisuals = roots
+                .SelectMany(root => root.GetComponentsInChildren<HandVisual>(true))
+                .Where(visual => visual.transform.parent != null &&
+                    visual.transform.parent.name == "OVRComprehensiveInteractionRig").ToArray();
+            int configured = primaryVisuals.Count(visual => visual.GetComponent<HandPhysicsCapsules>() != null);
+            if (configured != 2)
+                failures.Add($"Phase 1 contains {configured} physics-enabled primary hands; expected left and right hands.");
         }
 
         private static void ValidateOpaqueGloveMaterial(Material material, string path, Shader shader,

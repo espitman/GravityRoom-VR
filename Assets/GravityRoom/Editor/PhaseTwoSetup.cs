@@ -6,6 +6,7 @@ using GravityRoom;
 using Oculus.Interaction;
 using Oculus.Interaction.Editor.QuickActions;
 using Oculus.Interaction.HandGrab;
+using Oculus.Interaction.Surfaces;
 using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
@@ -154,8 +155,9 @@ namespace GravityRoom.Editor
             Material successMaterial = GetOrCreateMaterial("Phase2OrbSuccess", new Color(0.12f, 0.9f, 0.3f));
 
             var root = new GameObject("Phase 2 Practice");
-            CreateBox("Pedestal", root.transform, new Vector3(0f, 0.425f, 0.65f),
+            GameObject pedestal = CreateBox("Pedestal", root.transform, new Vector3(0f, 0.425f, 0.65f),
                 new Vector3(0.55f, 0.85f, 0.55f), pedestalMaterial);
+            CreatePedestalHandSurface(root.transform, pedestal);
 
             var gate = new GameObject("Gate Center");
             gate.transform.SetParent(root.transform, false);
@@ -205,6 +207,29 @@ namespace GravityRoom.Editor
             controller.Configure(rigidbody, grabbable, gate.transform, status, ballMaterial, successMaterial,
                 BallRadius, ApertureHalfSize);
             EditorUtility.SetDirty(controller);
+            PhaseTwoFloorReset floorReset = ballObject.AddComponent<PhaseTwoFloorReset>();
+            floorReset.Configure(controller);
+            EditorUtility.SetDirty(floorReset);
+        }
+
+        private static void CreatePedestalHandSurface(Transform parent, GameObject pedestal)
+        {
+            var surfaceObject = new GameObject("Pedestal Hand Surface");
+            surfaceObject.transform.SetParent(parent, false);
+            Bounds bounds = pedestal.GetComponent<Collider>().bounds;
+            surfaceObject.transform.SetPositionAndRotation(
+                new Vector3(bounds.center.x, bounds.max.y + 0.001f, bounds.center.z),
+                Quaternion.Euler(-90f, 0f, 0f));
+
+            PlaneSurface plane = surfaceObject.AddComponent<PlaneSurface>();
+            plane.InjectAllPlaneSurface(PlaneSurface.NormalFacing.Forward, false);
+            BoundsClipper clipper = surfaceObject.AddComponent<BoundsClipper>();
+            clipper.Position = Vector3.zero;
+            clipper.Size = new Vector3(bounds.size.x, bounds.size.z, 0.02f);
+            ClippedPlaneSurface clippedPlane = surfaceObject.AddComponent<ClippedPlaneSurface>();
+            clippedPlane.InjectAllClippedPlaneSurface(plane, new IBoundsClipper[] { clipper });
+            PokeInteractable interactable = surfaceObject.AddComponent<PokeInteractable>();
+            interactable.InjectAllPokeInteractable(clippedPlane);
         }
 
         private static GameObject CreateBox(string name, Transform parent, Vector3 position, Vector3 scale,
@@ -305,6 +330,9 @@ namespace GravityRoom.Editor
             if (!timedOutReset) failures.Add("Reset rule did not recover an orb at the unheld timeout.");
             if (movingCornerSettled || !stoppedCornerSettled || !settledReset)
                 failures.Add("Reset rule does not distinguish a moving orb from one settled out of reach.");
+            if (!PhaseTwoPassLogic.HasReachedFloor(new Vector3(0f, BallRadius, 0f), BallRadius) ||
+                PhaseTwoPassLogic.HasReachedFloor(new Vector3(0f, 0.3f, 0f), BallRadius))
+                failures.Add("Floor-contact reset rule does not reset immediately at floor height.");
         }
 
         private static void ValidateScene(ICollection<string> failures)
@@ -370,6 +398,9 @@ namespace GravityRoom.Editor
                     serialized.FindProperty("_rigidbody").objectReferenceValue != ball)
                     failures.Add("Practice orb Grabbable throw/kinematic/Rigidbody injection is incomplete.");
             }
+            PhaseTwoFloorReset floorReset = ball.GetComponent<PhaseTwoFloorReset>();
+            if (!floorReset || floorReset.Controller != controller)
+                failures.Add("Practice orb immediate floor-contact reset is missing or not wired.");
             int handInteractables = ball.GetComponentsInChildren<HandGrabInteractable>(true).Length;
             int controllerInteractables = ball.GetComponentsInChildren<GrabInteractable>(true).Length;
             if (handInteractables != 1 || controllerInteractables != 1)
@@ -388,6 +419,14 @@ namespace GravityRoom.Editor
                 .FirstOrDefault(transform => transform.name == "Pedestal");
             if (!pedestal || !pedestal.TryGetComponent(out Collider pedestalCollider) || pedestalCollider.isTrigger)
                 failures.Add("Reachable pedestal collision is missing.");
+            if (pedestal)
+            {
+                PokeInteractable handSurface = pedestal.parent
+                    .GetComponentsInChildren<PokeInteractable>(true)
+                    .FirstOrDefault(item => item.name == "Pedestal Hand Surface");
+                if (!handSurface || handSurface.GetComponent<ClippedPlaneSurface>() == null)
+                    failures.Add("Pedestal hand-limiting surface is missing.");
+            }
         }
     }
 }

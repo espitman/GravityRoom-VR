@@ -50,6 +50,13 @@ namespace GravityRoom
         public Material BlackMaterial => blackMaterial;
         public Material WhiteMaterial => whiteMaterial;
 
+        public void ResetBodyPose()
+        {
+            bodyPoseInitialized = false;
+            bodyPoseFrame = -1;
+            lastElbowBend = Vector3.zero;
+        }
+
         public void Configure(HandVisual visual, Material black, Material white)
         {
             handVisual = visual;

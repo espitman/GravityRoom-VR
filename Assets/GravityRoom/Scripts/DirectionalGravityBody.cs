@@ -44,6 +44,11 @@ namespace GravityRoom
                 body.WakeUp();
         }
 
+        public void SetAcceleration(float gravityAcceleration)
+        {
+            acceleration = Mathf.Max(0f, gravityAcceleration);
+        }
+
         private void Awake()
         {
             if (body == null) body = GetComponent<Rigidbody>();

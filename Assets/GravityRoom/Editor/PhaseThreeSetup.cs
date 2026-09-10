@@ -22,6 +22,8 @@ namespace GravityRoom.Editor
         private const string ApkPath = "Builds/Android/GravityRoom-Phase3.apk";
         private const string BuildLogPath = "Logs/GravityRoom-Phase3-build.txt";
         private const float GravityAcceleration = 9.81f;
+        private const float GravityChangeInterval = 12f;
+        private const float GravityCountdownDuration = 3f;
         private static readonly string[] RoomPartNames =
             { "Floor", "Wall North", "Wall South", "Wall East", "Wall West" };
 
@@ -100,7 +102,7 @@ namespace GravityRoom.Editor
                 if (text.name == "Title")
                     text.text = "GRAVITY ROOM — PHASE 3";
                 else if (text.name == "Instructions")
-                    text.text = "Gravity pauses while held and resumes on release.\nA / X selects Down, Left, or Right.";
+                    text.text = "Follow the arrow; gravity changes automatically.\nA / X changes it manually.";
                 EditorUtility.SetDirty(text);
             }
 
@@ -129,9 +131,55 @@ namespace GravityRoom.Editor
             Shader textShader = Shader.Find("GravityRoom/DepthTestedText");
             if (!textShader) throw new BuildFailedException("Depth-tested room text shader is missing.");
             modeText.gameObject.AddComponent<DepthTestedRoomText>().Configure(textShader);
+
+            Material arrowMaterial = AssetDatabase.LoadAssetAtPath<Material>(
+                "Assets/GravityRoom/Materials/Phase2Gate.mat");
+            if (!arrowMaterial) throw new BuildFailedException("Phase 2 gate material is missing.");
+            Transform arrow = CreateDirectionArrow(gravityRoot.transform, arrowMaterial, out Renderer[] renderers);
+            AudioSource warningAudio = gravityRoot.AddComponent<AudioSource>();
+            warningAudio.playOnAwake = false;
+            warningAudio.loop = false;
+            warningAudio.spatialBlend = 1f;
+            warningAudio.rolloffMode = AudioRolloffMode.Linear;
+            warningAudio.minDistance = 0.75f;
+            warningAudio.maxDistance = 8f;
+            warningAudio.volume = 0.8f;
             PhaseThreeGravityController controller = gravityRoot.AddComponent<PhaseThreeGravityController>();
-            controller.Configure(gravityBody, modeText);
+            controller.Configure(gravityBody, modeText, arrow, renderers, warningAudio,
+                GravityAcceleration, GravityChangeInterval, GravityCountdownDuration);
             EditorUtility.SetDirty(controller);
+        }
+
+        private static Transform CreateDirectionArrow(Transform parent, Material material,
+            out Renderer[] renderers)
+        {
+            var root = new GameObject("Gravity Direction Arrow");
+            root.transform.SetParent(parent, false);
+            root.transform.SetPositionAndRotation(new Vector3(-1.75f, 1.42f, 2.84f), Quaternion.identity);
+
+            Renderer shaft = CreateArrowPart("Arrow Shaft", root.transform,
+                new Vector3(0f, 0.13f, 0f), new Vector3(0.14f, 0.5f, 0.055f), 0f, material);
+            Renderer headLeft = CreateArrowPart("Arrow Head Left", root.transform,
+                new Vector3(-0.12f, -0.22f, 0f), new Vector3(0.12f, 0.36f, 0.055f), -45f, material);
+            Renderer headRight = CreateArrowPart("Arrow Head Right", root.transform,
+                new Vector3(0.12f, -0.22f, 0f), new Vector3(0.12f, 0.36f, 0.055f), 45f, material);
+            renderers = new[] { shaft, headLeft, headRight };
+            return root.transform;
+        }
+
+        private static Renderer CreateArrowPart(string name, Transform parent, Vector3 localPosition,
+            Vector3 localScale, float zRotation, Material material)
+        {
+            GameObject part = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            part.name = name;
+            part.transform.SetParent(parent, false);
+            part.transform.localPosition = localPosition;
+            part.transform.localRotation = Quaternion.Euler(0f, 0f, zRotation);
+            part.transform.localScale = localScale;
+            UnityEngine.Object.DestroyImmediate(part.GetComponent<Collider>());
+            Renderer renderer = part.GetComponent<Renderer>();
+            renderer.sharedMaterial = material;
+            return renderer;
         }
 
         private static TextMesh CreateText(string name, string content, Vector3 position, float characterSize)
@@ -168,6 +216,22 @@ namespace GravityRoom.Editor
                 failures.Add("Down/Left/Right gravity direction mapping is incorrect.");
             if (GravityRules.GetAcceleration(GravityMode.Left, -1f) != Vector3.zero)
                 failures.Add("Gravity acceleration must not become negative.");
+            if (GravityCycleRules.Next(GravityMode.Down) != GravityMode.Left ||
+                GravityCycleRules.Next(GravityMode.Left) != GravityMode.Right ||
+                GravityCycleRules.Next(GravityMode.Right) != GravityMode.Down ||
+                GravityCycleRules.Previous(GravityMode.Down) != GravityMode.Right ||
+                GravityCycleRules.Previous(GravityMode.Right) != GravityMode.Left ||
+                GravityCycleRules.Previous(GravityMode.Left) != GravityMode.Down)
+                failures.Add("Automatic/manual gravity cycling is not deterministic Down/Left/Right.");
+            if (GravityCycleRules.CountdownNumber(3f, GravityCountdownDuration) != 3 ||
+                GravityCycleRules.CountdownNumber(2f, GravityCountdownDuration) != 2 ||
+                GravityCycleRules.CountdownNumber(1f, GravityCountdownDuration) != 1 ||
+                GravityCycleRules.CountdownNumber(3.01f, GravityCountdownDuration) != 0)
+                failures.Add("The visual warning must count down 3, 2, 1 before a change.");
+            if (GravityCycleRules.ArrowAngle(GravityMode.Down) != 0f ||
+                GravityCycleRules.ArrowAngle(GravityMode.Left) != -90f ||
+                GravityCycleRules.ArrowAngle(GravityMode.Right) != 90f)
+                failures.Add("The world-space arrow rotations do not match the gravity directions.");
         }
 
         private static void ValidateScene(FixedSceneSnapshot baseline, ICollection<string> failures)
@@ -218,9 +282,32 @@ namespace GravityRoom.Editor
                 if (!GravityRules.ShouldApply(gravity.Body, false) || GravityRules.ShouldApply(gravity.Body, true))
                     failures.Add("Gravity must apply while free and be suppressed while selected.");
             }
-            if (selectors.Length == 1 &&
-                (selectors[0].GravityBody != gravity || selectors[0].ModeText == null))
-                failures.Add("The manual gravity selector references are incomplete.");
+            if (selectors.Length == 1)
+            {
+                PhaseThreeGravityController controller = selectors[0];
+                if (controller.GravityBody != gravity || controller.ModeText == null ||
+                    controller.DirectionArrow == null || controller.WarningAudioSource == null)
+                    failures.Add("The gravity controller feedback references are incomplete.");
+                if (Mathf.Abs(controller.GravityStrength - GravityAcceleration) > 0.001f ||
+                    Mathf.Abs(controller.ChangeInterval - GravityChangeInterval) > 0.001f ||
+                    Mathf.Abs(controller.CountdownDuration - GravityCountdownDuration) > 0.001f)
+                    failures.Add("Initial Quest gravity/timing settings do not match the Phase 3 defaults.");
+                if (controller.DirectionArrow != null)
+                {
+                    if (Vector3.Distance(controller.DirectionArrow.position,
+                            new Vector3(-1.75f, 1.42f, 2.84f)) > 0.0001f ||
+                        Quaternion.Angle(controller.DirectionArrow.rotation, Quaternion.identity) > 0.001f)
+                        failures.Add("The gravity arrow initial world-space placement is incorrect.");
+                    if (controller.DirectionArrow.GetComponentsInChildren<Renderer>(true).Length != 3)
+                        failures.Add("The world-space gravity arrow must contain exactly three visible parts.");
+                    if (controller.DirectionArrow.GetComponentsInChildren<Collider>(true).Length != 0)
+                        failures.Add("The gravity arrow must not add colliders to the room.");
+                }
+                AudioSource audio = controller.WarningAudioSource;
+                if (audio != null && (audio.playOnAwake || audio.loop || audio.spatialBlend < 0.99f ||
+                                      audio.clip != null))
+                    failures.Add("The procedural warning AudioSource settings are incorrect.");
+            }
 
             foreach (string roomPartName in RoomPartNames)
             {

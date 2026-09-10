@@ -217,6 +217,25 @@
         "The run timed out without returning a diagnosis, made no project changes, and is not credited with the implemented fix.",
         "Cache-read and thinking counts are reported subsets and are not added to total_tokens."
       ]
+    },
+    {
+      "task": "Phase 3 direction arrow, deterministic timing, countdown and procedural warning audio",
+      "model": "gpt-5.6-sol",
+      "tool": "Codex CLI",
+      "source": "turn.completed in gravity-phase3-feedback-sol.jsonl",
+      "usage": {
+        "input_tokens": 1005751,
+        "cached_input_tokens": 945152,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 17419,
+        "reasoning_output_tokens": 4888,
+        "total_tokens": 1023170
+      },
+      "notes": [
+        "Shared run across the arrow and countdown/audio checklist items; counted once under the arrow item.",
+        "Cached input and reasoning output are subsets and are not added again.",
+        "Root review, Unity fixes, validation, build and Quest deployment usage is unavailable."
+      ]
     }
   ]
 }

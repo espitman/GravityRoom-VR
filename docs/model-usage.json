@@ -236,6 +236,25 @@
         "Cached input and reasoning output are subsets and are not added again.",
         "Root review, Unity fixes, validation, build and Quest deployment usage is unavailable."
       ]
+    },
+    {
+      "task": "Phase 3 pedestal reachability and beginner gravity-strength correction",
+      "model": "gpt-5.6-sol",
+      "tool": "Codex CLI",
+      "source": "turn.completed in gravity-phase3-reachability-sol.jsonl",
+      "usage": {
+        "input_tokens": 991304,
+        "cached_input_tokens": 928512,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 11780,
+        "reasoning_output_tokens": 5310,
+        "total_tokens": 1003084
+      },
+      "notes": [
+        "Implemented release-armed custom gravity, reset disarming, Cancel safety, and the 2.5 m/s² initial tuning candidate.",
+        "Cached input and reasoning output are subsets and are not added again.",
+        "Root review, Unity validation, Android build and Quest deployment usage is unavailable."
+      ]
     }
   ]
 }

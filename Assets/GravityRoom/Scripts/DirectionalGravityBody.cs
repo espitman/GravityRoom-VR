@@ -18,7 +18,11 @@ namespace GravityRoom
         [SerializeField] private Rigidbody body;
         [SerializeField] private Grabbable grabbable;
         [SerializeField] private GravityMode mode = GravityMode.Down;
-        [SerializeField, Min(0f)] private float acceleration = 9.81f;
+        [SerializeField, Min(0f)] private float acceleration = 2.5f;
+
+        private Grabbable subscribedGrabbable;
+        private bool selectObserved;
+        private bool customGravityArmed;
 
         public Rigidbody Body => body;
         public Grabbable Grabbable => grabbable;
@@ -26,6 +30,7 @@ namespace GravityRoom
         public float Acceleration => acceleration;
         public Vector3 AccelerationVector => GravityRules.GetAcceleration(mode, acceleration);
         public bool IsSelected => grabbable != null && grabbable.SelectingPointsCount > 0;
+        public bool IsGravityArmed => customGravityArmed;
 
         public void Configure(Rigidbody targetBody, Grabbable targetGrabbable,
             GravityMode initialMode, float gravityAcceleration)
@@ -35,6 +40,8 @@ namespace GravityRoom
             mode = initialMode;
             acceleration = Mathf.Max(0f, gravityAcceleration);
             DisableBuiltInGravity();
+            DisarmCustomGravity();
+            BindGrabbable();
         }
 
         public void SetMode(GravityMode newMode)
@@ -53,6 +60,15 @@ namespace GravityRoom
         {
             if (body == null) body = GetComponent<Rigidbody>();
             DisableBuiltInGravity();
+            DisarmCustomGravity();
+        }
+
+        private void OnEnable() => BindGrabbable();
+
+        private void OnDisable()
+        {
+            UnbindGrabbable();
+            DisarmCustomGravity();
         }
 
         private void FixedUpdate()
@@ -66,8 +82,62 @@ namespace GravityRoom
         /// </summary>
         public void ApplyGravityStep(bool selected)
         {
-            if (GravityRules.ShouldApply(body, selected))
+            if (GravityRules.ShouldApply(body, selected, customGravityArmed))
                 body.AddForce(AccelerationVector, ForceMode.Acceleration);
+        }
+
+        /// <summary>Returns the orb to its safe pedestal state until another real grab/release.</summary>
+        public void DisarmCustomGravity()
+        {
+            customGravityArmed = false;
+            selectObserved = false;
+        }
+
+        /// <summary>
+        /// Tracks the Grabbable lifecycle. Only a terminal Unselect paired with a prior Select arms
+        /// gravity; Cancel and incomplete/multi-point releases leave it disarmed.
+        /// </summary>
+        public void ProcessSelectionEvent(PointerEventType eventType, int selectingPointsCount)
+        {
+            if (eventType == PointerEventType.Select)
+            {
+                selectObserved = true;
+                customGravityArmed = false;
+                return;
+            }
+
+            if (eventType == PointerEventType.Cancel)
+            {
+                customGravityArmed = false;
+                if (selectingPointsCount == 0)
+                    selectObserved = false;
+                return;
+            }
+
+            if (eventType == PointerEventType.Unselect && selectingPointsCount == 0)
+            {
+                customGravityArmed = selectObserved;
+                selectObserved = false;
+            }
+        }
+
+        private void HandlePointerEvent(PointerEvent pointerEvent) =>
+            ProcessSelectionEvent(pointerEvent.Type, grabbable != null ? grabbable.SelectingPointsCount : 0);
+
+        private void BindGrabbable()
+        {
+            if (!isActiveAndEnabled || subscribedGrabbable == grabbable) return;
+            UnbindGrabbable();
+            subscribedGrabbable = grabbable;
+            if (subscribedGrabbable != null)
+                subscribedGrabbable.WhenPointerEventRaised += HandlePointerEvent;
+        }
+
+        private void UnbindGrabbable()
+        {
+            if (subscribedGrabbable != null)
+                subscribedGrabbable.WhenPointerEventRaised -= HandlePointerEvent;
+            subscribedGrabbable = null;
         }
 
         private void DisableBuiltInGravity()
@@ -92,7 +162,7 @@ namespace GravityRoom
         public static Vector3 GetAcceleration(GravityMode mode, float acceleration) =>
             GetDirection(mode) * Mathf.Max(0f, acceleration);
 
-        public static bool ShouldApply(Rigidbody body, bool selected) =>
-            body != null && !selected && !body.isKinematic;
+        public static bool ShouldApply(Rigidbody body, bool selected, bool armed) =>
+            body != null && armed && !selected && !body.isKinematic;
     }
 }

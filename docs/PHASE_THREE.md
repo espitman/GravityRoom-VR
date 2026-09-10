@@ -16,8 +16,8 @@ ADB=/Users/espitman/Library/Android/sdk/platform-tools/adb ./scripts/deploy-ques
 ## Core behavior
 
 - `DirectionalGravityBody` opts one Rigidbody into room-relative gravity without changing `Physics.gravity`.
-- The practice orb starts in Down mode at 9.81 m/s². It cycles deterministically Down → Left → Right every 12 seconds. A selects the next mode and X selects the previous mode; either manual action restarts the interval.
-- Gravity is suppressed while the orb is selected. On release, the Meta Interaction SDK throw velocity is retained and directional acceleration begins on the next physics step.
+- The practice orb starts in Down mode at 2.5 m/s². It cycles deterministically Down → Left → Right every 12 seconds. A selects the next mode and X selects the previous mode; either manual action restarts the interval.
+- The orb remains stationary and reachable on its accepted PhaseTwo pedestal until a genuine grab and release. Gravity is suppressed while selected, activates only after Select → terminal Unselect, and stays disabled after Cancel. Every ball reset disarms gravity again. On release, the Meta Interaction SDK throw velocity is retained and directional acceleration begins on the next physics step.
 - The room colliders and `OVRCameraRig` are copied unchanged from PhaseTwo and never receive the gravity component.
 - Existing hand/controller interaction, gate pass logic, delayed floor reset and player start alignment remain active.
 - A collider-free three-piece arrow shows the active world-space direction. It turns orange while the wall text counts 3, 2, 1 before a change.
@@ -31,9 +31,12 @@ ADB=/Users/espitman/Library/Android/sdk/platform-tools/adb ./scripts/deploy-ques
 - APK: 108,733,034 bytes; SHA-256 `1b9a4fde95afc6657ca18bc6b0ac48eb37bec4f3ff8c678f6c63a91d0b9aa0c9`.
 - The APK installed successfully on Quest 3 serial `2G0YC5ZHBJ02WW` and cold-launched. Physical feel and visual acceptance are still part of the remaining PhaseThree device test.
 - Device logs reached focused OpenXR rendering and player alignment with no Unity or Android runtime exception after launch.
+- After the first headset pass showed that the waiting orb escaped and 9.81 m/s² made target throws impractical, the release-armed lifecycle and 2.5 m/s² tuning candidate passed validation and build. The revised APK is 108,729,169 bytes with SHA-256 `c19555d7bf2107a528cc3140bf9cc744ba1f6c8c18c2e0c3e1c5320629999953` and was installed and cold-launched on the same Quest 3.
 
 ## Model accounting
 
 Sol (`gpt-5.6-sol`, Codex CLI) implemented the core runtime, scene tooling and physics checks. GPT-6 with an unavailable exact identifier reviewed the change, fixed the test-scene lifetime bug, ran Unity validation/build and deployed it. The Sol run was interrupted while Unity was blocked by its workspace sandbox and emitted no `turn.completed` usage event; root task usage is also unavailable. Both counts are recorded as unknown rather than estimated.
 
 The feedback/timing milestone was implemented by Sol (`gpt-5.6-sol`, Codex CLI): 1,005,751 input + 17,419 output = 1,023,170 total tokens. Cached input (945,152) and reasoning output (4,888) are subsets. GPT-6 reviewed it, fixed the unstable multi-class Unity script serialization uncovered by a clean reload, regenerated the scenes, validated both phases, built and deployed; root task usage is unavailable. See `model-usage.json`.
+
+The reachability and playable-strength correction was implemented by Sol (`gpt-5.6-sol`, Codex CLI): 991,304 input + 11,780 output = 1,003,084 total tokens. Cached input (928,512) and reasoning output (5,310) are subsets. GPT-6 reviewed, ran the expanded release-lifecycle and directional physics validation, built and installed the APK; root task usage is unavailable.

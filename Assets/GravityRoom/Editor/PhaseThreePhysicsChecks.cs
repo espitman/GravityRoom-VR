@@ -10,6 +10,7 @@ namespace GravityRoom.Editor
     internal static class PhaseThreePhysicsChecks
     {
         private const float Step = 0.01f;
+        private const float GravityAcceleration = 2.5f;
 
         public static void Validate(Scene source, ICollection<string> failures)
         {
@@ -49,19 +50,65 @@ namespace GravityRoom.Editor
                 body.angularDamping = 0f;
                 body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
                 DirectionalGravityBody gravity = orb.AddComponent<DirectionalGravityBody>();
-                gravity.Configure(body, null, GravityMode.Down, 9.81f);
+                gravity.Configure(body, null, GravityMode.Down, GravityAcceleration);
                 PhysicsScene physics = testScene.GetPhysicsScene();
 
+                ValidateReleaseLifecycle(gravity, body, physics, failures);
                 ValidateHeldAndReleasedModes(gravity, body, physics, failures);
                 ValidateDirectionalRoomCollisions(gravity, body, physics, failures);
-                Debug.Log("[GravityRoom] Phase 3 isolated physics checks completed: held suppression, " +
-                          "first release step, and Down/Left/Right room collisions.");
+                Debug.Log("[GravityRoom] Phase 3 isolated physics checks completed: pedestal disarm, " +
+                          "Select/Unselect/Cancel lifecycle, held suppression, first release step, " +
+                          "and Down/Left/Right room collisions.");
             }
             finally
             {
                 Physics.simulationMode = originalMode;
                 EditorSceneManager.OpenScene(sourcePath, OpenSceneMode.Single);
             }
+        }
+
+        private static void ValidateReleaseLifecycle(DirectionalGravityBody gravity, Rigidbody body,
+            PhysicsScene physics, ICollection<string> failures)
+        {
+            body.position = new Vector3(0f, 5f, 0f);
+            body.linearVelocity = Vector3.zero;
+            body.angularVelocity = Vector3.zero;
+            gravity.DisarmCustomGravity();
+            gravity.ApplyGravityStep(false);
+            physics.Simulate(Step);
+            if (gravity.IsGravityArmed || body.linearVelocity.sqrMagnitude > 0.000001f)
+                failures.Add("A reset/disarmed orb received custom gravity while waiting on its pedestal.");
+
+            gravity.ProcessSelectionEvent(Oculus.Interaction.PointerEventType.Unselect, 0);
+            if (gravity.IsGravityArmed)
+                failures.Add("Unselect without a preceding Select armed custom gravity.");
+
+            gravity.ProcessSelectionEvent(Oculus.Interaction.PointerEventType.Select, 2);
+            gravity.ProcessSelectionEvent(Oculus.Interaction.PointerEventType.Unselect, 1);
+            if (gravity.IsGravityArmed)
+                failures.Add("A non-terminal Unselect armed custom gravity while the orb was still held.");
+            gravity.DisarmCustomGravity();
+
+            gravity.ProcessSelectionEvent(Oculus.Interaction.PointerEventType.Select, 1);
+            gravity.ProcessSelectionEvent(Oculus.Interaction.PointerEventType.Cancel, 0);
+            if (gravity.IsGravityArmed)
+                failures.Add("Cancel armed custom gravity.");
+
+            gravity.ProcessSelectionEvent(Oculus.Interaction.PointerEventType.Unselect, 0);
+            if (gravity.IsGravityArmed)
+                failures.Add("Unselect after Cancel armed custom gravity without a new Select.");
+
+            gravity.ProcessSelectionEvent(Oculus.Interaction.PointerEventType.Select, 1);
+            gravity.ProcessSelectionEvent(Oculus.Interaction.PointerEventType.Unselect, 0);
+            if (!gravity.IsGravityArmed)
+                failures.Add("A genuine Select/Unselect release did not arm custom gravity.");
+            if (!GravityRules.ShouldApply(body, false, true) ||
+                GravityRules.ShouldApply(body, true, true))
+                failures.Add("Armed gravity must apply only while the orb is not selected.");
+
+            gravity.DisarmCustomGravity();
+            if (gravity.IsGravityArmed)
+                failures.Add("Reset did not disarm custom gravity.");
         }
 
         private static void ValidateHeldAndReleasedModes(DirectionalGravityBody gravity, Rigidbody body,
@@ -74,6 +121,7 @@ namespace GravityRoom.Editor
                 body.linearVelocity = throwVelocity;
                 body.angularVelocity = Vector3.zero;
                 gravity.SetMode(mode);
+                gravity.ProcessSelectionEvent(Oculus.Interaction.PointerEventType.Select, 1);
                 body.WakeUp();
                 Physics.SyncTransforms();
 
@@ -83,9 +131,11 @@ namespace GravityRoom.Editor
                     failures.Add($"{mode} gravity changed orb velocity while selected.");
 
                 Vector3 beforeReleaseStep = body.linearVelocity;
+                gravity.ProcessSelectionEvent(Oculus.Interaction.PointerEventType.Unselect, 0);
                 gravity.ApplyGravityStep(false);
                 physics.Simulate(Step);
-                Vector3 expected = beforeReleaseStep + GravityRules.GetAcceleration(mode, 9.81f) * Step;
+                Vector3 expected = beforeReleaseStep +
+                                   GravityRules.GetAcceleration(mode, GravityAcceleration) * Step;
                 if (Vector3.Distance(body.linearVelocity, expected) > 0.002f)
                     failures.Add($"{mode} gravity did not preserve throw velocity and accelerate on the first free step.");
             }
@@ -101,6 +151,8 @@ namespace GravityRoom.Editor
                 body.linearVelocity = Vector3.zero;
                 body.angularVelocity = Vector3.zero;
                 gravity.SetMode(mode);
+                gravity.ProcessSelectionEvent(Oculus.Interaction.PointerEventType.Select, 1);
+                gravity.ProcessSelectionEvent(Oculus.Interaction.PointerEventType.Unselect, 0);
                 body.WakeUp();
                 Physics.SyncTransforms();
                 for (int i = 0; i < 400; i++)

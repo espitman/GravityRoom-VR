@@ -189,6 +189,8 @@ namespace GravityRoom
             // Recheck selection at the mutation boundary.
             if (grabbable.SelectingPointsCount > 0) return;
             Debug.Log("[GravityRoom] Phase 2 orb reset to pedestal.");
+            if (ball.TryGetComponent(out DirectionalGravityBody directionalGravity))
+                directionalGravity.DisarmCustomGravity();
             ball.position = spawnPosition;
             ball.rotation = spawnRotation;
             ball.linearVelocity = Vector3.zero;

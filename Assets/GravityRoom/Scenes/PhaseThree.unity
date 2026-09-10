@@ -157,7 +157,7 @@ MonoBehaviour:
   - {fileID: 636301026}
   - {fileID: 1392194445}
   warningAudioSource: {fileID: 12477103}
-  gravityStrength: 9.81
+  gravityStrength: 2.5
   changeInterval: 12
   countdownDuration: 3
 --- !u!82 &12477103
@@ -2253,7 +2253,7 @@ MonoBehaviour:
   body: {fileID: 1352681207}
   grabbable: {fileID: 1352681201}
   mode: 0
-  acceleration: 9.81
+  acceleration: 2.5
 --- !u!1 &1392194444
 GameObject:
   m_ObjectHideFlags: 0

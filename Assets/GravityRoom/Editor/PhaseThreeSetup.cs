@@ -21,7 +21,7 @@ namespace GravityRoom.Editor
         private const string ScenePath = "Assets/GravityRoom/Scenes/PhaseThree.unity";
         private const string ApkPath = "Builds/Android/GravityRoom-Phase3.apk";
         private const string BuildLogPath = "Logs/GravityRoom-Phase3-build.txt";
-        private const float GravityAcceleration = 9.81f;
+        private const float GravityAcceleration = 2.5f;
         private const float GravityChangeInterval = 12f;
         private const float GravityCountdownDuration = 3f;
         private static readonly string[] RoomPartNames =
@@ -278,9 +278,11 @@ namespace GravityRoom.Editor
                     failures.Add("The opted-in orb still uses global Rigidbody gravity.");
                 if (gravity.Mode != GravityMode.Down ||
                     Mathf.Abs(gravity.Acceleration - GravityAcceleration) > 0.001f)
-                    failures.Add("The orb must start in Down mode at 9.81 m/s².");
-                if (!GravityRules.ShouldApply(gravity.Body, false) || GravityRules.ShouldApply(gravity.Body, true))
-                    failures.Add("Gravity must apply while free and be suppressed while selected.");
+                    failures.Add("The orb must start in Down mode at 2.5 m/s².");
+                if (gravity.IsGravityArmed ||
+                    GravityRules.ShouldApply(gravity.Body, false, gravity.IsGravityArmed) ||
+                    GravityRules.ShouldApply(gravity.Body, true, true))
+                    failures.Add("Gravity must wait for a release and remain suppressed while selected.");
             }
             if (selectors.Length == 1)
             {

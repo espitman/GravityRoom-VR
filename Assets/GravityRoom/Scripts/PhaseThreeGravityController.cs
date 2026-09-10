@@ -20,7 +20,7 @@ namespace GravityRoom
         [SerializeField] private AudioSource warningAudioSource;
 
         [Header("Initial Quest tuning")]
-        [SerializeField, Min(0f)] private float gravityStrength = 9.81f;
+        [SerializeField, Min(0f)] private float gravityStrength = 2.5f;
         [SerializeField, Min(3.1f)] private float changeInterval = 12f;
         [SerializeField, Range(1f, 3f)] private float countdownDuration = 3f;
 

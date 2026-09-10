@@ -139,6 +139,7 @@ namespace GravityRoom.Editor
             AudioSource warningAudio = gravityRoot.AddComponent<AudioSource>();
             warningAudio.playOnAwake = false;
             warningAudio.loop = false;
+            warningAudio.mute = true;
             warningAudio.spatialBlend = 1f;
             warningAudio.rolloffMode = AudioRolloffMode.Linear;
             warningAudio.minDistance = 0.75f;
@@ -306,9 +307,9 @@ namespace GravityRoom.Editor
                         failures.Add("The gravity arrow must not add colliders to the room.");
                 }
                 AudioSource audio = controller.WarningAudioSource;
-                if (audio != null && (audio.playOnAwake || audio.loop || audio.spatialBlend < 0.99f ||
+                if (audio != null && (audio.playOnAwake || audio.loop || !audio.mute || audio.spatialBlend < 0.99f ||
                                       audio.clip != null))
-                    failures.Add("The procedural warning AudioSource settings are incorrect.");
+                    failures.Add("The muted procedural warning AudioSource settings are incorrect.");
             }
 
             foreach (string roomPartName in RoomPartNames)

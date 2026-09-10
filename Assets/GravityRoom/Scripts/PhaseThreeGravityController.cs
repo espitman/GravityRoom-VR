@@ -174,6 +174,7 @@ namespace GravityRoom
                 warningAudioSource = gameObject.AddComponent<AudioSource>();
             warningAudioSource.playOnAwake = false;
             warningAudioSource.loop = false;
+            warningAudioSource.mute = true;
             warningAudioSource.spatialBlend = 1f;
             warningAudioSource.rolloffMode = AudioRolloffMode.Linear;
             warningAudioSource.minDistance = 0.75f;

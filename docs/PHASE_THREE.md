@@ -22,6 +22,7 @@ ADB=/Users/espitman/Library/Android/sdk/platform-tools/adb ./scripts/deploy-ques
 - Existing hand/controller interaction, gate pass logic, delayed floor reset and player start alignment remain active.
 - A collider-free three-piece arrow shows the active world-space direction. It turns orange while the wall text counts 3, 2, 1 before a change.
 - A spatial warning chirp plays once when the countdown begins. The clip is synthesized once at startup, so no third-party audio asset is stored and no clip is allocated per frame.
+- Game audio is temporarily muted for headset testing at the user's request; the warning logic remains wired for later re-enabling.
 
 ## Verification
 

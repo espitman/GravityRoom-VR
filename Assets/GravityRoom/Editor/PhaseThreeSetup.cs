@@ -102,7 +102,7 @@ namespace GravityRoom.Editor
                 if (text.name == "Title")
                     text.text = "GRAVITY ROOM — PHASE 3";
                 else if (text.name == "Instructions")
-                    text.text = "Follow the arrow; gravity changes automatically.\nA / X changes it manually.";
+                    text.text = "Follow the arrow; gravity changes automatically.\nFar orb: palm up + index pinch for 1 second.";
                 EditorUtility.SetDirty(text);
             }
 

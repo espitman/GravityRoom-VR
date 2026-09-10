@@ -6,6 +6,7 @@ using GravityRoom;
 using Oculus.Interaction;
 using Oculus.Interaction.Editor.QuickActions;
 using Oculus.Interaction.HandGrab;
+using Oculus.Interaction.Input;
 using Oculus.Interaction.Surfaces;
 using UnityEditor;
 using UnityEditor.Build;
@@ -137,7 +138,7 @@ namespace GravityRoom.Editor
                 }
                 else if (text.name == "Instructions")
                 {
-                    text.text = "Grab the orb with either hand.\nRelease it through the gate.";
+                    text.text = "Grab the orb with either hand.\nFar orb: palm up + index pinch for 1 second.";
                     text.transform.position = new Vector3(0f, 2.08f, 2.88f);
                 }
                 EditorUtility.SetDirty(text);
@@ -195,7 +196,7 @@ namespace GravityRoom.Editor
             grabbable.TransferOnSecondSelection = true;
             EditorUtility.SetDirty(grabbable);
 
-            TextMesh status = CreateText("Practice Status", "GRAB THE ORB, THEN THROW IT THROUGH THE GATE\nB / Y: reset",
+            TextMesh status = CreateText("Practice Status", "GRAB THE ORB, THEN THROW IT THROUGH THE GATE\nRESET: B / Y OR PALM-UP PINCH",
                 new Vector3(0f, 1.78f, 2.88f), 0.011f);
             status.transform.SetParent(root.transform, true);
             Shader textShader = Shader.Find("GravityRoom/DepthTestedText");
@@ -333,6 +334,32 @@ namespace GravityRoom.Editor
             if (!PhaseTwoPassLogic.HasReachedFloor(new Vector3(0f, BallRadius, 0f), BallRadius) ||
                 PhaseTwoPassLogic.HasReachedFloor(new Vector3(0f, 0.3f, 0f), BallRadius))
                 failures.Add("Floor-contact reset rule does not reset immediately at floor height.");
+
+            const float gestureDistance = 0.9f;
+            bool distantFromBothHands = PhaseTwoResetGestureLogic.IsOrbMeaningfullyDistant(
+                Vector3.zero, new Vector3(1f, 0f, 0f), true,
+                new Vector3(-1f, 0f, 0f), true, gestureDistance);
+            bool nearEitherHand = PhaseTwoResetGestureLogic.IsOrbMeaningfullyDistant(
+                Vector3.zero, new Vector3(1f, 0f, 0f), true,
+                new Vector3(0.2f, 0f, 0f), true, gestureDistance);
+            if (!distantFromBothHands || nearEitherHand)
+                failures.Add("Hand reset distance rule does not protect a near-orb hand interaction.");
+
+            bool validPalmPinch = PhaseTwoResetGestureLogic.AreHandConditionsMet(
+                true, false, true, 0.7f, 0.65f);
+            bool lowConfidencePinch = PhaseTwoResetGestureLogic.AreHandConditionsMet(
+                false, false, true, 0.7f, 0.65f);
+            bool tiltedPalmPinch = PhaseTwoResetGestureLogic.AreHandConditionsMet(
+                true, false, true, 0.5f, 0.65f);
+            if (!validPalmPinch || lowConfidencePinch || tiltedPalmPinch)
+                failures.Add("Hand reset rule does not require confident palm-up tracking and a pinch.");
+
+            float partialHold = PhaseTwoResetGestureLogic.UpdateHoldDuration(0f, true, 0.6f, 1f);
+            float resetHold = PhaseTwoResetGestureLogic.UpdateHoldDuration(partialHold, false, 0.1f, 1f);
+            float completedHold = PhaseTwoResetGestureLogic.UpdateHoldDuration(partialHold, true, 0.4f, 1f);
+            if (resetHold != 0f ||
+                !PhaseTwoResetGestureLogic.CompletedThisFrame(partialHold, completedHold, 1f))
+                failures.Add("Hand reset hold rule does not require one uninterrupted gesture.");
         }
 
         private static void ValidateScene(ICollection<string> failures)
@@ -410,6 +437,27 @@ namespace GravityRoom.Editor
             int grabInteractors = roots.Sum(root => root.GetComponentsInChildren<GrabInteractor>(true).Length);
             if (handInteractors < 2 || grabInteractors < 2)
                 failures.Add("The comprehensive rig does not expose grab interactors for both sides/devices.");
+            OVRHand[] trackedHands = roots.SelectMany(root => root.GetComponentsInChildren<OVRHand>(true)).ToArray();
+            bool hasLeftOvrHand = trackedHands.Any(hand =>
+            {
+                OVRSkeleton.SkeletonType type =
+                    ((OVRSkeleton.IOVRSkeletonDataProvider)hand).GetSkeletonType();
+                return type == OVRSkeleton.SkeletonType.HandLeft ||
+                       type == OVRSkeleton.SkeletonType.XRHandLeft;
+            });
+            bool hasRightOvrHand = trackedHands.Any(hand =>
+            {
+                OVRSkeleton.SkeletonType type =
+                    ((OVRSkeleton.IOVRSkeletonDataProvider)hand).GetSkeletonType();
+                return type == OVRSkeleton.SkeletonType.HandRight ||
+                       type == OVRSkeleton.SkeletonType.XRHandRight;
+            });
+            if (!hasLeftOvrHand || !hasRightOvrHand)
+                failures.Add("The practice reset fallback requires existing left and right OVRHand sources.");
+            Hand[] poseHands = roots.SelectMany(root => root.GetComponentsInChildren<Hand>(true)).ToArray();
+            if (!poseHands.Any(hand => hand.Handedness == Handedness.Left) ||
+                !poseHands.Any(hand => hand.Handedness == Handedness.Right))
+                failures.Add("The practice reset fallback requires world-pose hands for both sides.");
 
             Transform gate = controller.GateCenter;
             if (gate && (Vector3.Distance(gate.position, new Vector3(0f, 1.4f, 2.6f)) > 0.01f ||

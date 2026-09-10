@@ -20,6 +20,7 @@ ADB=/Users/espitman/Library/Android/sdk/platform-tools/adb ./scripts/deploy-ques
 - The orb remains stationary and reachable on its accepted PhaseTwo pedestal until a genuine grab and release. Gravity is suppressed while selected, activates only after Select → terminal Unselect, and stays disabled after Cancel. Every ball reset disarms gravity again. On release, the Meta Interaction SDK throw velocity is retained and directional acceleration begins on the next physics step.
 - The room colliders and `OVRCameraRig` are copied unchanged from PhaseTwo and never receive the gravity component.
 - Existing hand/controller interaction, gate pass logic, delayed floor reset and player start alignment remain active.
+- A distant unheld orb can be recalled without controllers: hold either tracked palm upward and maintain an index-thumb pinch for one second. The gesture is disabled near the orb and while it is grabbed, and tracking loss, low confidence, palm rotation, system gestures or a broken pinch cancel its progress.
 - A collider-free three-piece arrow shows the active world-space direction. It turns orange while the wall text counts 3, 2, 1 before a change.
 - A spatial warning chirp plays once when the countdown begins. The clip is synthesized once at startup, so no third-party audio asset is stored and no clip is allocated per frame.
 - Game audio is temporarily muted for headset testing at the user's request; the warning logic remains wired for later re-enabling.
@@ -33,6 +34,7 @@ ADB=/Users/espitman/Library/Android/sdk/platform-tools/adb ./scripts/deploy-ques
 - The APK installed successfully on Quest 3 serial `2G0YC5ZHBJ02WW` and cold-launched. Physical feel and visual acceptance are still part of the remaining PhaseThree device test.
 - Device logs reached focused OpenXR rendering and player alignment with no Unity or Android runtime exception after launch.
 - After the first headset pass showed that the waiting orb escaped and 9.81 m/s² made target throws impractical, the release-armed lifecycle and 2.5 m/s² tuning candidate passed validation and build. The revised APK is 108,729,169 bytes with SHA-256 `c19555d7bf2107a528cc3140bf9cc744ba1f6c8c18c2e0c3e1c5320629999953` and was installed and cold-launched on the same Quest 3.
+- The natural-hand recall build passed PhaseThree validation and Android packaging with 0 errors and 8 warnings. Installation was deferred because no Quest appeared in `adb devices`; the APK was also copied to the desktop for sideloading.
 
 ## Model accounting
 
@@ -41,3 +43,5 @@ Sol (`gpt-5.6-sol`, Codex CLI) implemented the core runtime, scene tooling and p
 The feedback/timing milestone was implemented by Sol (`gpt-5.6-sol`, Codex CLI): 1,005,751 input + 17,419 output = 1,023,170 total tokens. Cached input (945,152) and reasoning output (4,888) are subsets. GPT-6 reviewed it, fixed the unstable multi-class Unity script serialization uncovered by a clean reload, regenerated the scenes, validated both phases, built and deployed; root task usage is unavailable. See `model-usage.json`.
 
 The reachability and playable-strength correction was implemented by Sol (`gpt-5.6-sol`, Codex CLI): 991,304 input + 11,780 output = 1,003,084 total tokens. Cached input (928,512) and reasoning output (5,310) are subsets. GPT-6 reviewed, ran the expanded release-lifecycle and directional physics validation, built and installed the APK; root task usage is unavailable.
+
+The controller-free recall gesture was implemented by Sol (`gpt-5.6-sol`, Codex CLI): 3,081,692 input + 17,793 output = 3,099,485 total tokens. Cached input (2,973,184) and reasoning output (7,428) are subsets. GPT-6 reviewed, validated and built it; root task usage is unavailable.

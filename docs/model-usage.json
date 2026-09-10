@@ -255,6 +255,25 @@
         "Cached input and reasoning output are subsets and are not added again.",
         "Root review, Unity validation, Android build and Quest deployment usage is unavailable."
       ]
+    },
+    {
+      "task": "Natural-hand distant-orb recall gesture",
+      "model": "gpt-5.6-sol",
+      "tool": "Codex CLI",
+      "source": "turn.completed in gravity-hand-recall-sol.jsonl",
+      "usage": {
+        "input_tokens": 3081692,
+        "cached_input_tokens": 2973184,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 17793,
+        "reasoning_output_tokens": 7428,
+        "total_tokens": 3099485
+      },
+      "notes": [
+        "Implemented a cached high-confidence palm-up index-pinch recall gesture protected by distance and grab-state rules.",
+        "Cached input and reasoning output are subsets and are not added again.",
+        "Root review, Unity validation and Android build usage is unavailable; the headset was disconnected before deployment."
+      ]
     }
   ]
 }

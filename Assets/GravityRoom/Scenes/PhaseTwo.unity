@@ -1953,7 +1953,7 @@ TextMesh:
   m_GameObject: {fileID: 1819553036}
   m_Text: 'GRAB THE ORB, THEN THROW IT THROUGH THE GATE
 
-    B / Y: reset'
+    RESET: B / Y OR PALM-UP PINCH'
   m_OffsetZ: 0
   m_CharacterSize: 0.011
   m_LineSpacing: 1

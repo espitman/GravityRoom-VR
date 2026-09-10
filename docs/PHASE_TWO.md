@@ -50,7 +50,13 @@ Sol (`gpt-5.6-sol`, Codex CLI) implemented the scene generator and runtime: 1,46
 - APK: `Builds/Android/GravityRoom-Phase2.apk`, approximately 104 MiB; SHA-256 `21b35abbc0b3159c778b474114a720f3d0af107843c7b81c80c771de2ee18e9e`. APK and detailed logs remain local and ignored by Git.
 - `git diff --check`, shell syntax and accounting JSON parsing passed. Unity upgraded the serialized physics settings to its current schema while retaining FixedUpdate simulation and existing gravity.
 - The physics test harness initially failed because scene creation and simulation mode needed editor-specific handling; both were corrected before the successful build.
-- **Not yet verified:** installation/launch of PhaseTwo on Quest, natural-hand/controller throws, inter-hand transfers and reset races on hardware, reachability/throw tuning, performance and visual acceptance.
+- **Not yet verified:** natural-hand/controller throws, inter-hand transfers and reset races on hardware, reachability/throw tuning, performance and visual acceptance.
+
+## Natural-hand input correction — 2026-09-10
+
+The Quest manifest permissions and OpenXR hand extensions were present, but the application initially entered controller-only input mode. The generated scenes now enable `SimultaneousHandsAndControllersEnabled` and `launchSimultaneousHandsControllersOnStartup` on their sole `OVRManager`; controller-driven hand poses and the accepted glove visuals remain unchanged. A new development APK built successfully with 0 errors and 8 warnings, was installed on the connected Quest 3, and its device log confirmed `SimultaneousHandsAndControllersModeEnabled = true`. Physical natural-hand grab/release confirmation from the user remains pending.
+
+Sol (`gpt-5.6-sol`, Codex CLI) usage for the focused fix: 128,350 input + 1,291 output = 129,641 tokens. Root verification usage is unavailable. The separate agy diagnosis attempt timed out without a result and is recorded in `model-usage.json` without attribution for the fix.
 
 ## Release build for sideload testing
 

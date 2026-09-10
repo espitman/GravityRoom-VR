@@ -70,6 +70,7 @@ namespace GravityRoom.Editor
                 ConfigureDiagnosticLabels();
             }
 
+            ConfigureOvrManager();
             ConfigureGloveVisuals();
             Shader roomTextShader = Shader.Find("GravityRoom/DepthTestedText");
             if (!roomTextShader) throw new BuildFailedException("Depth-tested room text shader is missing.");
@@ -429,6 +430,18 @@ namespace GravityRoom.Editor
             }
         }
 
+        private static void ConfigureOvrManager()
+        {
+            OVRManager[] managers = SceneManager.GetActiveScene().GetRootGameObjects()
+                .SelectMany(root => root.GetComponentsInChildren<OVRManager>(true)).ToArray();
+            if (managers.Length != 1)
+                throw new BuildFailedException($"Phase 1 scene contains {managers.Length} OVRManager components; expected exactly one.");
+
+            managers[0].SimultaneousHandsAndControllersEnabled = true;
+            managers[0].launchSimultaneousHandsControllersOnStartup = true;
+            EditorUtility.SetDirty(managers[0]);
+        }
+
         private static void EnsureSceneIsEnabled()
         {
             var scenes = EditorBuildSettings.scenes.Where(scene => scene.path != ScenePath).ToList();
@@ -534,6 +547,18 @@ namespace GravityRoom.Editor
             int cameraRigs = roots.Sum(root => root.GetComponentsInChildren<OVRCameraRig>(true).Length);
             if (cameraRigs != 1)
                 failures.Add($"Phase 1 scene contains {cameraRigs} OVRCameraRig components; expected exactly one.");
+
+            OVRManager[] managers = roots
+                .SelectMany(root => root.GetComponentsInChildren<OVRManager>(true)).ToArray();
+            if (managers.Length != 1)
+                failures.Add($"Phase 1 scene contains {managers.Length} OVRManager components; expected exactly one.");
+            else
+            {
+                if (!managers[0].SimultaneousHandsAndControllersEnabled)
+                    failures.Add("OVRManager simultaneous hands and controllers support is not enabled.");
+                if (!managers[0].launchSimultaneousHandsControllersOnStartup)
+                    failures.Add("OVRManager does not launch simultaneous hands and controllers on startup.");
+            }
 
             PhaseOneDiagnostics[] diagnosticComponents = roots
                 .SelectMany(root => root.GetComponentsInChildren<PhaseOneDiagnostics>(true)).ToArray();

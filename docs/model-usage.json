@@ -181,6 +181,42 @@
       "notes": [
         "Build entry point and shell action only. Root Unity build, artifact verification and delivery token usage unavailable."
       ]
+    },
+    {
+      "task": "Enable simultaneous natural-hand and controller input for Phase 2",
+      "model": "gpt-5.6-sol",
+      "tool": "Codex CLI",
+      "source": "turn.completed usage from the focused Sol implementation run",
+      "usage": {
+        "input_tokens": 128350,
+        "cached_input_tokens": 114432,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1291,
+        "reasoning_output_tokens": 204,
+        "total_tokens": 129641
+      },
+      "notes": [
+        "Configured and validated simultaneous hands/controllers startup without changing glove visuals or controller-driven hand poses.",
+        "A preceding Sol diagnosis run was interrupted before completion after excessive SDK inspection; no task usage summary was emitted, so its token count is unknown.",
+        "Root diagnosis, Unity build, deployment and device-log verification token usage is unavailable."
+      ]
+    },
+    {
+      "task": "Read-only natural-hand grab diagnosis attempt",
+      "model": "gemini-3.8-flash-medium",
+      "tool": "agy CLI",
+      "source": "usage returned when the agy print timeout elapsed",
+      "usage": {
+        "input_tokens": 246935,
+        "output_tokens": 12224,
+        "thinking_tokens": 5223,
+        "cache_read_tokens": 2873932,
+        "total_tokens": 259159
+      },
+      "notes": [
+        "The run timed out without returning a diagnosis, made no project changes, and is not credited with the implemented fix.",
+        "Cache-read and thinking counts are reported subsets and are not added to total_tokens."
+      ]
     }
   ]
 }
